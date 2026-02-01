@@ -76,22 +76,60 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 			for weight in layer.weights:
 				w = weight.numpy()
 				if weight.name == 'kernel':
-					for i in range(w.shape[0]):
-						for j in range(0, w.shape[1], pack_size):
-							w_block = w[i][j:j+pack_size]
-							if w.shape[1] >= pack_size:
-								scale = (np.max(np.abs(w_block))) / (half_point - 1)
-								w_block_q = np.clip(np.round(w_block / scale), -(half_point - 1), (half_point - 1)).astype(np.int16)
-								w_block_q = w_block_q + half_point
-								f.write(struct.pack('>f', scale))
-								if (quant_size == 4):
-									packed = [ctypes.c_uint8((w_block_q[k] & 0x0F) << 4 | (w_block_q[k+1] & 0x0F) if k+1 < len(w_block_q) else 0).value for k in range(0, len(w_block_q), 2)]
-								elif (quant_size == 8):
-									packed = [ctypes.c_uint8(k).value for k in range(0, len(w_block_q))]
-								f.write(bytearray(packed))
-							else:
-								for k in w_block:
-									f.write(struct.pack('>f', k))
+					if layer.name.find('dense') != -1:
+						for i in range(w.shape[0]):
+							for j in range(0, w.shape[1], pack_size):
+								w_block = w[i][j:j+pack_size]
+								if w.shape[1] >= pack_size:
+									scale = (np.max(np.abs(w_block))) / (half_point - 1)
+									w_block_q = np.clip(np.round(w_block / scale), -(half_point - 1), (half_point - 1)).astype(np.int16)
+									w_block_q = w_block_q + half_point
+									f.write(struct.pack('>f', scale))
+									if (quant_size == 4):
+										packed = [ctypes.c_uint8((w_block_q[k] & 0x0F) << 4 | (w_block_q[k+1] & 0x0F) if k+1 < len(w_block_q) else 0).value for k in range(0, len(w_block_q), 2)]
+									elif (quant_size == 8):
+										packed = [ctypes.c_uint8(k).value for k in range(0, len(w_block_q))]
+									f.write(bytearray(packed))
+								else:
+									for k in w_block:
+										f.write(struct.pack('>f', k))
+					elif layer.name.find('conv1d') != -1:
+						for i in range(w.shape[0]):
+							for j in range(w.shape[1]):
+								for k in range(0, w.shape[2], pack_size):
+									w_block = w[i][j][k:k+pack_size]
+									if w.shape[2] >= pack_size:
+										scale = (np.max(np.abs(w_block))) / (half_point - 1)
+										w_block_q = np.clip(np.round(w_block / scale), -(half_point - 1), (half_point - 1)).astype(np.int16)
+										w_block_q = w_block_q + half_point
+										f.write(struct.pack('>f', scale))
+										if (quant_size == 4):
+											packed = [ctypes.c_uint8((w_block_q[m] & 0x0F) << 4 | (w_block_q[m+1] & 0x0F) if m+1 < len(w_block_q) else 0).value for m in range(0, len(w_block_q), 2)]
+										elif (quant_size == 8):
+											packed = [ctypes.c_uint8(m).value for m in range(0, len(w_block_q))]
+										f.write(bytearray(packed))
+									else:
+										for m in w_block:
+											f.write(struct.pack('>f', m))
+					elif layer.name.find('conv2d') != -1:
+						for i in range(w.shape[0]):
+							for j in range(w.shape[1]):
+								for k in range(w.shape[2]):
+									for l in range(0, w.shape[3], pack_size):
+										w_block = w[i][j][k][l:l+pack_size]
+										if w.shape[3] >= pack_size:
+											scale = (np.max(np.abs(w_block))) / (half_point - 1)
+											w_block_q = np.clip(np.round(w_block / scale), -(half_point - 1), (half_point - 1)).astype(np.int16)
+											w_block_q = w_block_q + half_point
+											f.write(struct.pack('>f', scale))
+											if (quant_size == 4):
+												packed = [ctypes.c_uint8((w_block_q[m] & 0x0F) << 4 | (w_block_q[m+1] & 0x0F) if m+1 < len(w_block_q) else 0).value for m in range(0, len(w_block_q), 2)]
+											elif (quant_size == 8):
+												packed = [ctypes.c_uint8(m).value for m in range(0, len(w_block_q))]
+											f.write(bytearray(packed))
+										else:
+											for m in w_block:
+												f.write(struct.pack('>f', m))
 				else:
 					for i in range(0, w.shape[0], pack_size):
 						w_block = w[i:i+pack_size]

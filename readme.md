@@ -1,0 +1,5 @@
+ - GRU, LSTM, RNN
+ - Kernel cuda
+ - Lasy losowe
+ - Wpięcie wag bez dekompresji
+ - Wstrzyknięcie dekompresji do wykonania TF
