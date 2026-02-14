@@ -89,7 +89,7 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 									if (quant_size == 4):
 										packed = [ctypes.c_uint8((w_block_q[k] & 0x0F) << 4 | (w_block_q[k+1] & 0x0F) if k+1 < len(w_block_q) else 0).value for k in range(0, len(w_block_q), 2)]
 									elif (quant_size == 8):
-										packed = [ctypes.c_uint8(k).value for k in range(0, len(w_block_q))]
+										packed = [ctypes.c_uint8(k).value for k in w_block_q]
 									f.write(bytearray(packed))
 								else:
 									for k in w_block:
@@ -107,7 +107,7 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 										if (quant_size == 4):
 											packed = [ctypes.c_uint8((w_block_q[m] & 0x0F) << 4 | (w_block_q[m+1] & 0x0F) if m+1 < len(w_block_q) else 0).value for m in range(0, len(w_block_q), 2)]
 										elif (quant_size == 8):
-											packed = [ctypes.c_uint8(m).value for m in range(0, len(w_block_q))]
+											packed = [ctypes.c_uint8(m).value for m in w_block_q]
 										f.write(bytearray(packed))
 									else:
 										for m in w_block:
@@ -126,7 +126,7 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 											if (quant_size == 4):
 												packed = [ctypes.c_uint8((w_block_q[m] & 0x0F) << 4 | (w_block_q[m+1] & 0x0F) if m+1 < len(w_block_q) else 0).value for m in range(0, len(w_block_q), 2)]
 											elif (quant_size == 8):
-												packed = [ctypes.c_uint8(m).value for m in range(0, len(w_block_q))]
+												packed = [ctypes.c_uint8(m).value for m in w_block_q]
 											f.write(bytearray(packed))
 										else:
 											for m in w_block:
@@ -142,7 +142,7 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 							if (quant_size == 4):
 								packed = [ctypes.c_uint8((w_block_q[k] & 0x0F) << 4 | (w_block_q[k+1] & 0x0F) if k+1 < len(w_block_q) else 0).value for k in range(0, len(w_block_q), 2)]
 							elif (quant_size == 8):
-								packed = [ctypes.c_uint8(k).value for k in range(0, len(w_block_q))]
+								packed = [ctypes.c_uint8(k).value for k in w_block_q]
 							f.write(bytearray(packed))
 						else:
 							for k in w_block:
