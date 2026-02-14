@@ -151,12 +151,14 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 	
 	print('Quantizing done. Quant saved to: '+str(Path(quant_directory) / (quant_name + ".uniq")))
 
-def dequantize(quant_path:str):
+def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 	"""Dequantizes a given quant and returns it.
 
 	Parameters
 	----------
 		quant_path : Path to the quant to dequantize (with extension).
+		literal : Should the weights be unscaled or not.
+		balanced : Should the weights be re-balanced around 0 or kept above 0.
 	"""
 
 	### Imports ###
@@ -211,14 +213,23 @@ def dequantize(quant_path:str):
 							for k in range(0, batch_shift//2):
 								byte = int(data_hex[k*2:(k*2)+2], 16)
 								if (quant_size == 4):
-									n1 = ((byte >> 4) & 0x0F) - half_point
-									w2 = np.append(w2, n1 * scale)
+									n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+									if not literal:
+										w2 = np.append(w2, n1 * scale)
+									else:
+										w2 = np.append(w2, n1)
 									n2 = (byte & 0x0F)
 									if (n2 != 0):
-										w2 = np.append(w2, (n2 - half_point) * scale)
+										if not literal:
+											w2 = np.append(w2, (n2 - (half_point if balanced else 0)) * scale)
+										else:
+											w2 = np.append(w2, (n2 - (half_point if balanced else 0)))
 								elif (quant_size == 8):
-									n = byte - half_point
-									w2 = np.append(w2, n * scale)
+									n = byte - (half_point if balanced else 0)
+									if not literal:
+										w2 = np.append(w2, n * scale)
+									else:
+										w2 = np.append(w2, n)
 
 					if d2 % pack_size != 0:
 						irreg_shift = int((d2 % pack_size) * (quant_size / 4))
@@ -229,14 +240,23 @@ def dequantize(quant_path:str):
 						for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
 							byte = int(data_hex[k*2:(k*2)+2], 16)
 							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - half_point
-								w2 = np.append(w2, n1 * scale)
+								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+								if not literal:
+									w2 = np.append(w2, n1 * scale)
+								else:
+									w2 = np.append(w2, n1)
 								n2 = (byte & 0x0F)
 								if (n2 != 0):
-									w2 = np.append(w2, (n2 - half_point) * scale)
+									if not literal:
+										w2 = np.append(w2, (n2 - (half_point if balanced else 0)) * scale)
+									else:
+										w2 = np.append(w2, (n2 - (half_point if balanced else 0)))
 							elif (quant_size == 8):
-								n = byte - half_point
-								w2 = np.append(w2, n * scale)
+								n = byte - (half_point if balanced else 0)
+								if not literal:
+									w2 = np.append(w2, n * scale)
+								else:
+									w2 = np.append(w2, n)
 					if len(w) == 0:
 						w = w2
 					else:
@@ -252,14 +272,23 @@ def dequantize(quant_path:str):
 						for k in range(0, batch_shift//2):
 							byte = int(data_hex[k*2:(k*2)+2], 16)
 							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - half_point
-								w3 = np.append(w3, n1 * scale)
+								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+								if not literal:
+									w3 = np.append(w3, n1 * scale)
+								else:
+									w3 = np.append(w3, n1)
 								n2 = (byte & 0x0F)
 								if (n2 != 0):
-									w3 = np.append(w3, (n2 - half_point) * scale)
+									if not literal:
+										w3 = np.append(w3, (n2 - (half_point if balanced else 0)) * scale)
+									else:
+										w3 = np.append(w3, (n2 - (half_point if balanced else 0)))
 							elif (quant_size == 8):
-								n = byte - half_point
-								w3 = np.append(w3, n * scale)
+								n = byte - (half_point if balanced else 0)
+								if not literal:
+									w3 = np.append(w3, n * scale)
+								else:
+									w3 = np.append(w3, n)
 
 				if d2 % pack_size != 0:
 					irreg_shift = int((d2 % pack_size) * (quant_size / 4))
@@ -269,14 +298,23 @@ def dequantize(quant_path:str):
 					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
 						byte = int(data_hex[k*2:(k*2)+2], 16)
 						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - half_point
-							w3 = np.append(w3, n1 * scale)
+							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+							if not literal:
+								w3 = np.append(w3, n1 * scale)
+							else:
+								w3 = np.append(w3, n1)
 							n2 = (byte & 0x0F)
 							if (n2 != 0):
-								w3 = np.append(w3, (n2 - half_point) * scale)
+								if not literal:
+									w3 = np.append(w3, (n2 - (half_point if balanced else 0)) * scale)
+								else:
+									w3 = np.append(w3, (n2 - (half_point if balanced else 0)))
 						elif (quant_size == 8):
-							n = byte - half_point
-							w3 = np.append(w3, n * scale)
+							n = byte - (half_point if balanced else 0)
+							if not literal:
+								w3 = np.append(w3, n * scale)
+							else:
+								w3 = np.append(w3, n)
 
 				weights[layer['config']['name']] = [w, w3]
 			else:
@@ -320,14 +358,23 @@ def dequantize(quant_path:str):
 								for l in range(0, batch_shift//2):
 									byte = int(data_hex[l*2:(l*2)+2], 16)
 									if (quant_size == 4):
-										n1 = ((byte >> 4) & 0x0F) - half_point
-										w3 = np.append(w3, n1 * scale)
+										n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+										if not literal:
+											w3 = np.append(w3, n1 * scale)
+										else:
+											w3 = np.append(w3, n1)
 										n2 = (byte & 0x0F)
 										if (n2 != 0):
-											w3 = np.append(w3, (n2 - half_point) * scale)
+											if not literal:
+												w3 = np.append(w3, (n2 - (half_point if balanced else 0)) * scale)
+											else:
+												w3 = np.append(w3, (n2 - (half_point if balanced else 0)))
 									elif (quant_size == 8):
-										n = byte - half_point
-										w3 = np.append(w3, n * scale)
+										n = byte - (half_point if balanced else 0)
+										if not literal:
+											w3 = np.append(w3, n * scale)
+										else:
+											w3 = np.append(w3, n)
 						if d3 % pack_size != 0:
 							irreg_shift = int((d3 % pack_size) * (quant_size / 4))
 							scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
@@ -337,14 +384,23 @@ def dequantize(quant_path:str):
 							for l in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
 								byte = int(data_hex[l*2:(l*2)+2], 16)
 								if (quant_size == 4):
-									n1 = ((byte >> 4) & 0x0F) - half_point
-									w3 = np.append(w3, n1 * scale)
+									n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+									if not literal:
+										w3 = np.append(w3, n1 * scale)
+									else:
+										w3 = np.append(w3, n1)
 									n2 = (byte & 0x0F)
 									if (n2 != 0):
-										w3 = np.append(w3, (n2 - half_point) * scale)
+										if not literal:
+											w3 = np.append(w3, (n2 - (half_point if balanced else 0)) * scale)
+										else:
+											w3 = np.append(w3, (n2 - (half_point if balanced else 0)))
 								elif (quant_size == 8):
-									n = byte - half_point
-									w3 = np.append(w3, n * scale)
+									n = byte - (half_point if balanced else 0)
+									if not literal:
+										w3 = np.append(w3, n * scale)
+									else:
+										w3 = np.append(w3, n)
 						if len(w2) == 0:
 							w2 = w3
 						else:
@@ -364,14 +420,23 @@ def dequantize(quant_path:str):
 						for k in range(0, batch_shift//2):
 							byte = int(data_hex[k*2:(k*2)+2], 16)
 							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - half_point
-								w4 = np.append(w4, n1 * scale)
+								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+								if not literal:
+									w4 = np.append(w4, n1 * scale)
+								else:
+									w4 = np.append(w4, n1)
 								n2 = (byte & 0x0F)
 								if (n2 != 0):
-									w4 = np.append(w4, (n2 - half_point) * scale)
+									if not literal:
+										w4 = np.append(w4, (n2 - (half_point if balanced else 0)) * scale)
+									else:
+										w4 = np.append(w4, (n2 - (half_point if balanced else 0)))
 							elif (quant_size == 8):
-								n = byte - half_point
-								w4 = np.append(w4, n * scale)
+								n = byte - (half_point if balanced else 0)
+								if not literal:
+									w4 = np.append(w4, n * scale)
+								else:
+									w4 = np.append(w4, n)
 				
 				if d3 % pack_size != 0:
 					irreg_shift = int((d3 % pack_size) * (quant_size / 4))
@@ -381,14 +446,23 @@ def dequantize(quant_path:str):
 					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
 						byte = int(data_hex[k*2:(k*2)+2], 16)
 						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - half_point
-							w4 = np.append(w4, n1 * scale)
+							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+							if not literal:
+								w4 = np.append(w4, n1 * scale)
+							else:
+								w4 = np.append(w4, n1)
 							n2 = (byte & 0x0F)
 							if (n2 != 0):
-								w4 = np.append(w4, (n2 - half_point) * scale)
+								if not literal:
+									w4 = np.append(w4, (n2 - (half_point if balanced else 0)) * scale)
+								else:
+									w4 = np.append(w4, (n2 - (half_point if balanced else 0)))
 						elif (quant_size == 8):
-							n = byte - half_point
-							w4 = np.append(w4, n * scale)
+							n = byte - (half_point if balanced else 0)
+							if not literal:
+								w4 = np.append(w4, n * scale)
+							else:
+								w4 = np.append(w4, n)
 				weights[layer['config']['name']] = [w, w4]
 			else:
 				layer_data = bin_data[ptr:ptr+(((d1*d2)+1)*d3*8)]
@@ -440,14 +514,23 @@ def dequantize(quant_path:str):
 									for m in range(0, batch_shift//2):
 										byte = int(data_hex[m*2:(m*2)+2], 16)
 										if (quant_size == 4):
-											n1 = ((byte >> 4) & 0x0F) - half_point
-											w4 = np.append(w4, n1 * scale)
+											n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+											if not literal:
+												w4 = np.append(w4, n1 * scale)
+											else:
+												w4 = np.append(w4, n1)
 											n2 = (byte & 0x0F)
 											if (n2 != 0):
-												w4 = np.append(w4, (n2 - half_point) * scale)
+												if not literal:
+													w4 = np.append(w4, (n2 - (half_point if balanced else 0)) * scale)
+												else:
+													w4 = np.append(w4, (n2 - (half_point if balanced else 0)))
 										elif (quant_size == 8):
-											n = byte - half_point
-											w4 = np.append(w4, n * scale)
+											n = byte - (half_point if balanced else 0)
+											if not literal:
+												w4 = np.append(w4, n * scale)
+											else:
+												w4 = np.append(w4, n)
 							if d4 % pack_size != 0:
 								irreg_shift = int((d4 % pack_size) * (quant_size / 4))
 								scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
@@ -457,14 +540,23 @@ def dequantize(quant_path:str):
 								for m in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
 									byte = int(data_hex[m*2:(m*2)+2], 16)
 									if (quant_size == 4):
-										n1 = ((byte >> 4) & 0x0F) - half_point
-										w4 = np.append(w4, n1 * scale)
+										n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+										if not literal:
+											w4 = np.append(w4, n1 * scale)
+										else:
+											w4 = np.append(w4, n1)
 										n2 = (byte & 0x0F)
 										if (n2 != 0):
-											w4 = np.append(w4, (n2 - half_point) * scale)
+											if not literal:
+												w4 = np.append(w4, (n2 - (half_point if balanced else 0)) * scale)
+											else:
+												w4 = np.append(w4, (n2 - (half_point if balanced else 0)))
 									elif (quant_size == 8):
-										n = byte - half_point
-										w4 = np.append(w4, n * scale)
+										n = byte - (half_point if balanced else 0)
+										if not literal:
+											w4 = np.append(w4, n * scale)
+										else:
+											w4 = np.append(w4, n)
 							if len(w3) == 0:
 								w3 = w4
 							else:
@@ -488,14 +580,23 @@ def dequantize(quant_path:str):
 						for k in range(0, batch_shift//2):
 							byte = int(data_hex[k*2:(k*2)+2], 16)
 							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - half_point
-								w5 = np.append(w5, n1 * scale)
+								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+								if not literal:
+									w5 = np.append(w5, n1 * scale)
+								else:
+									w5 = np.append(w5, n1)
 								n2 = (byte & 0x0F)
 								if (n2 != 0):
-									w5 = np.append(w5, (n2 - half_point) * scale)
+									if not literal:
+										w5 = np.append(w5, (n2 - (half_point if balanced else 0)) * scale)
+									else:
+										w5 = np.append(w5, (n2 - (half_point if balanced else 0)))
 							elif (quant_size == 8):
-								n = byte - half_point
-								w5 = np.append(w5, n * scale)
+								n = byte - (half_point if balanced else 0)
+								if not literal:
+									w5 = np.append(w5, n * scale)
+								else:
+									w5 = np.append(w5, n)
 
 				if d4 % pack_size != 0:
 					irreg_shift = int((d4 % pack_size) * (quant_size / 4))
@@ -505,14 +606,23 @@ def dequantize(quant_path:str):
 					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
 						byte = int(data_hex[k*2:(k*2)+2], 16)
 						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - half_point
-							w5 = np.append(w5, n1 * scale)
+							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+							if not literal:
+								w5 = np.append(w5, n1 * scale)
+							else:
+								w5 = np.append(w5, n1)
 							n2 = (byte & 0x0F)
 							if (n2 != 0):
-								w5 = np.append(w5, (n2 - half_point) * scale)
+								if not literal:
+									w5 = np.append(w5, (n2 - (half_point if balanced else 0)) * scale)
+								else:
+									w5 = np.append(w5, (n2 - (half_point if balanced else 0)))
 						elif (quant_size == 8):
-							n = byte - half_point
-							w5 = np.append(w5, n * scale)
+							n = byte - (half_point if balanced else 0)
+							if not literal:
+								w5 = np.append(w5, n * scale)
+							else:
+								w5 = np.append(w5, n)
 				weights[layer['config']['name']] = [w, w5]
 			else:
 				layer_data = bin_data[ptr:ptr+(((d1*d2*d3)+1)*d4*8)]
@@ -561,14 +671,23 @@ def dequantize(quant_path:str):
 						for k in range(0, batch_shift//2):
 							byte = int(data_hex[k*2:(k*2)+2], 16)
 							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - half_point
-								w = np.append(w, n1 * scale)
+								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+								if not literal:
+									w = np.append(w, n1 * scale)
+								else:
+									w = np.append(w, n1)
 								n2 = (byte & 0x0F)
 								if (n2 != 0):
-									w = np.append(w, (n2 - half_point) * scale)
+									if not literal:
+										w = np.append(w, (n2 - (half_point if balanced else 0)) * scale)
+									else:
+										w = np.append(w, (n2 - (half_point if balanced else 0)))
 							elif (quant_size == 8):
-								n = byte - half_point
-								w = np.append(w, n * scale)
+								n = byte - (half_point if balanced else 0)
+								if not literal:
+									w = np.append(w, n * scale)
+								else:
+									w = np.append(w, n)
 				if d1 % pack_size != 0:
 					irreg_shift = int((d1 % pack_size) * (quant_size / 4))
 					scale_hex = layer_data[batches*(8+batch_shift):(batches*(8+batch_shift))+8]
@@ -577,14 +696,23 @@ def dequantize(quant_path:str):
 					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
 						byte = int(data_hex[k*2:(k*2)+2], 16)
 						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - half_point
-							w = np.append(w, n1 * scale)
+							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+							if not literal:
+								w = np.append(w, n1 * scale)
+							else:
+								w = np.append(w, n1)
 							n2 = (byte & 0x0F)
 							if (n2 != 0):
-								w = np.append(w, (n2 - half_point) * scale)
+								if not literal:
+									w = np.append(w, (n2 - (half_point if balanced else 0)) * scale)
+								else:
+									w = np.append(w, (n2 - (half_point if balanced else 0)))
 						elif (quant_size == 8):
-							n = byte - half_point
-							w = np.append(w, n * scale)
+							n = byte - (half_point if balanced else 0)
+							if not literal:
+								w = np.append(w, n * scale)
+							else:
+								w = np.append(w, n)
 				ptr_2 = batches*(8+batch_shift) + (d1-(batches*batch_shift)+(d1%2)) + (8 if batches*batch_shift < d1 else 0)
 				w2 = np.array([])
 				if (d1 >= pack_size):
@@ -595,14 +723,23 @@ def dequantize(quant_path:str):
 						for k in range(0, batch_shift//2):
 							byte = int(data_hex[k*2:(k*2)+2], 16)
 							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - half_point
-								w2 = np.append(w2, n1 * scale)
+								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+								if not literal:
+									w2 = np.append(w2, n1 * scale)
+								else:
+									w2 = np.append(w2, n1)
 								n2 = (byte & 0x0F)
 								if (n2 != 0):
-									w2 = np.append(w2, (n2 - half_point) * scale)
+									if not literal:
+										w2 = np.append(w2, (n2 - (half_point if balanced else 0)) * scale)
+									else:
+										w2 = np.append(w2, (n2 - (half_point if balanced else 0)))
 							elif (quant_size == 8):
-								n = byte - half_point
-								w2 = np.append(w2, n * scale)
+								n = byte - (half_point if balanced else 0)
+								if not literal:
+									w2 = np.append(w2, n * scale)
+								else:
+									w2 = np.append(w2, n)
 					ptr_2 += batches*(8+batch_shift)
 				if d1 % pack_size != 0:
 					irreg_shift = int((d1 % pack_size) * (quant_size / 4))
@@ -612,14 +749,23 @@ def dequantize(quant_path:str):
 					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
 						byte = int(data_hex[k*2:(k*2)+2], 16)
 						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - half_point
-							w2 = np.append(w2, n1 * scale)
+							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
+							if not literal:
+								w2 = np.append(w2, n1 * scale)
+							else:
+								w2 = np.append(w2, n1)
 							n2 = (byte & 0x0F)
 							if (n2 != 0):
-								w2 = np.append(w2, (n2 - half_point) * scale)
+								if not literal:
+									w2 = np.append(w2, (n2 - (half_point if balanced else 0)) * scale)
+								else:
+									w2 = np.append(w2, (n2 - (half_point if balanced else 0)))
 						elif (quant_size == 8):
-							n = byte - half_point
-							w2 = np.append(w2, n * scale)
+							n = byte - (half_point if balanced else 0)
+							if not literal:
+								w2 = np.append(w2, n * scale)
+							else:
+								w2 = np.append(w2, n)
 				weights[layer['config']['name']] = [w, w2]
 			else:
 				layer_data = bin_data[ptr:ptr+((d1*8)*2)]
