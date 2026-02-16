@@ -76,9 +76,11 @@ del model
 del X_train
 del y_train
 
-progress = tqdm(total=10, desc="Tests", unit="test", miniters=1, mininterval=0)
-for quant_size in [4, 8]:
-	for num in [32,64,16,8,128]:
+quant_t = [4]
+num_t = [32]
+progress = tqdm(total=len(quant_t)*len(num_t), desc="Tests", unit="test", miniters=1, mininterval=0)
+for quant_size in quant_t:
+	for num in num_t:
 		quantize("model.keras", quant_name='m_cls'+str(num)+"_"+str(quant_size), overwrite=True, pack_size=num, quant_size = quant_size)
 		model = dequantize('m_cls'+str(num)+"_"+str(quant_size)+".uniq")
 		y_pred_prob = model.predict(X_test).flatten()
@@ -86,10 +88,11 @@ for quant_size in [4, 8]:
 		accuracy = accuracy_score(y_test, y_pred)
 		precision = precision_score(y_test, y_pred)
 		recall = recall_score(y_test, y_pred)
+		f1 = f1_score(y_test, y_pred)
 		print(f"Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}, F1: {f1}")
 		results.append({"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1})
 		del model
 		progress.update(1)
 	
-	with open(f"test_classifier_{quant_size}bit_results_32_64_16_8_128.json", "w") as f:
+	with open(f"test_classifier_{quant_size}bit_results_32_literal.json", "w") as f:
 		json.dump(results, f, indent=4)

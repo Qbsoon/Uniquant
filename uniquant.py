@@ -68,86 +68,71 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 	with output.open("quant.json", 'w') as json_file:
 		json_file.write(('{"pack_size": "' + str(pack_size) + '", "quant_size": "' + str(quant_size) + '"}').encode('utf-8'))
 
+	### CUDA ###
+	import torch, os
+	from torch.utils.cpp_extension import load_inline
+	os.environ['CUDA_LAUNCH_BLOCKING']='1'
+	def load_cuda(cuda_src, cpp_src, funcs, opt=False, verbose=False):
+		return load_inline(cuda_sources=[cuda_src], cpp_sources=[cpp_src], functions=funcs,
+						extra_cuda_cflags=["-O2"] if opt else [], verbose=verbose, name="inline_ext")
+	with open('qkernel.cpp', 'r') as f:
+		cuda_src = f.read()
+	cpp_src = "torch::Tensor quantize_pack_dense(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+	"torch::Tensor quantize_pack_conv1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+	"torch::Tensor quantize_pack_conv2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+	"torch::Tensor quantize_pack_1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);"
+	module = load_cuda(cuda_src, cpp_src,
+					['quantize_pack_dense', 'quantize_pack_conv1d', 'quantize_pack_conv2d', 'quantize_pack_1d'],
+					verbose=True)
+
 	### Quantizing ###
-	half_point = int((2**quant_size)/2)
-	progress = tqdm(total=len(model.layers), desc="Quantizing weights", unit="layer", miniters=1, mininterval=0)
 	with output.open("quant.bin", 'w') as f:
-		for layer in model.layers:
+		for layer in tqdm(model.layers, desc="Quantizing weights", unit="layer", miniters=1, mininterval=0):
 			for weight in layer.weights:
 				w = weight.numpy()
-				packed = 0
 				if weight.name == 'kernel':
 					if layer.name.find('dense') != -1:
-						for i in range(w.shape[0]):
-							for j in range(0, w.shape[1], pack_size):
-								w_block = w[i][j:j+pack_size]
-								if w.shape[1] >= pack_size:
-									scale = (np.max(np.abs(w_block))) / (half_point - 1)
-									w_block_q = np.clip(np.round(w_block / scale), -(half_point - 1), (half_point - 1)).astype(np.int16)
-									w_block_q = w_block_q + half_point
-									f.write(struct.pack('>f', scale))
-									if (quant_size == 4):
-										packed = [ctypes.c_uint8((w_block_q[k] & 0x0F) << 4 | (w_block_q[k+1] & 0x0F) if k+1 < len(w_block_q) else 0).value for k in range(0, len(w_block_q), 2)]
-									elif (quant_size == 8):
-										packed = [ctypes.c_uint8(k).value for k in w_block_q]
-									f.write(bytearray(packed))
-								else:
+						if w.shape[1] >= pack_size:
+							out_bytes = module.quantize_pack_dense_fullblocks(torch.from_numpy(w), pack_size, quant_size)
+							f.write(out_bytes.numpy().tobytes())
+						else:
+							for i in range(w.shape[0]):
+								for j in range(0, w.shape[1], pack_size):
+									w_block = w[i][j:j+pack_size]
 									for k in w_block:
 										f.write(struct.pack('>f', k))
 					elif layer.name.find('conv1d') != -1:
-						for i in range(w.shape[0]):
-							for j in range(w.shape[1]):
-								for k in range(0, w.shape[2], pack_size):
-									w_block = w[i][j][k:k+pack_size]
-									if w.shape[2] >= pack_size:
-										scale = (np.max(np.abs(w_block))) / (half_point - 1)
-										w_block_q = np.clip(np.round(w_block / scale), -(half_point - 1), (half_point - 1)).astype(np.int16)
-										w_block_q = w_block_q + half_point
-										f.write(struct.pack('>f', scale))
-										if (quant_size == 4):
-											packed = [ctypes.c_uint8((w_block_q[m] & 0x0F) << 4 | (w_block_q[m+1] & 0x0F) if m+1 < len(w_block_q) else 0).value for m in range(0, len(w_block_q), 2)]
-										elif (quant_size == 8):
-											packed = [ctypes.c_uint8(m).value for m in w_block_q]
-										f.write(bytearray(packed))
-									else:
-										for m in w_block:
-											f.write(struct.pack('>f', m))
+						if w.shape[2] >= pack_size:
+							out_bytes = module.quantize_pack_conv1d_fullblocks(torch.from_numpy(w), pack_size, quant_size)
+							f.write(out_bytes.numpy().tobytes())
+						else:
+							for i in range(w.shape[0]):
+								for j in range(w.shape[1]):
+									for k in range(0, w.shape[2], pack_size):
+										w_block = w[i][j][k:k+pack_size]
+										for l in w_block:
+											f.write(struct.pack('>f', l))
 					elif layer.name.find('conv2d') != -1:
-						for i in range(w.shape[0]):
-							for j in range(w.shape[1]):
-								for k in range(w.shape[2]):
-									for l in range(0, w.shape[3], pack_size):
-										w_block = w[i][j][k][l:l+pack_size]
-										if w.shape[3] >= pack_size:
-											scale = (np.max(np.abs(w_block))) / (half_point - 1)
-											w_block_q = np.clip(np.round(w_block / scale), -(half_point - 1), (half_point - 1)).astype(np.int16)
-											w_block_q = w_block_q + half_point
-											f.write(struct.pack('>f', scale))
-											if (quant_size == 4):
-												packed = [ctypes.c_uint8((w_block_q[m] & 0x0F) << 4 | (w_block_q[m+1] & 0x0F) if m+1 < len(w_block_q) else 0).value for m in range(0, len(w_block_q), 2)]
-											elif (quant_size == 8):
-												packed = [ctypes.c_uint8(m).value for m in w_block_q]
-											f.write(bytearray(packed))
-										else:
+						if w.shape[3] >= pack_size:
+							out_bytes = module.quantize_pack_conv2d_fullblocks(torch.from_numpy(w), pack_size, quant_size)
+							f.write(out_bytes.numpy().tobytes())
+						else:
+							for i in range(w.shape[0]):
+								for j in range(w.shape[1]):
+									for k in range(w.shape[2]):
+										for l in range(0, w.shape[3], pack_size):
+											w_block = w[i][j][k][l:l+pack_size]
 											for m in w_block:
 												f.write(struct.pack('>f', m))
 				else:
-					for i in range(0, w.shape[0], pack_size):
-						w_block = w[i:i+pack_size]
-						if w.shape[0] >= pack_size:
-							scale = (np.max(np.abs(w_block))) / (half_point - 1)
-							w_block_q = np.clip(np.round(w_block / scale), -(half_point - 1), (half_point - 1)).astype(np.int16)
-							w_block_q = w_block_q + half_point
-							f.write(struct.pack('>f', scale))
-							if (quant_size == 4):
-								packed = [ctypes.c_uint8((w_block_q[k] & 0x0F) << 4 | (w_block_q[k+1] & 0x0F) if k+1 < len(w_block_q) else 0).value for k in range(0, len(w_block_q), 2)]
-							elif (quant_size == 8):
-								packed = [ctypes.c_uint8(k).value for k in w_block_q]
-							f.write(bytearray(packed))
-						else:
-							for k in w_block:
-								f.write(struct.pack('>f', k))
-			progress.update(1)
+					if w.shape[0] >= pack_size:
+						out_bytes = module.quantize_pack_1d_fullblocks(torch.from_numpy(w).reshape(-1), pack_size, quant_size)
+						f.write(out_bytes.numpy().tobytes())
+					else:
+						for i in range(0, w.shape[0], pack_size):
+							w_block = w[i:i+pack_size]
+							for j in w_block:
+								f.write(struct.pack('>f', j))
 	
 	print('Quantizing done. Quant saved to: '+str(Path(quant_directory) / (quant_name + ".uniq")))
 
@@ -169,7 +154,6 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 	import numpy as np
 	import struct
 	from tqdm.auto import tqdm
-	from pathlib import Path
 	from keras.saving import deserialize_keras_object
 	import json
 	import zipfile
@@ -182,143 +166,44 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 		quant_config = json.loads(q.read('quant.json').decode())
 		bin_data = q.read('quant.bin').hex()
 
+	### CUDA ###
+	import torch, os
+	from torch.utils.cpp_extension import load_inline
+	os.environ['CUDA_LAUNCH_BLOCKING']='1'
+	def load_cuda(cuda_src, cpp_src, funcs, opt=False, verbose=False):
+		return load_inline(cuda_sources=[cuda_src], cpp_sources=[cpp_src], functions=funcs,
+						extra_cuda_cflags=["-O2"] if opt else [], verbose=verbose, name="inline_ext")
+	with open('dkernel.cpp', 'r') as f:
+		cuda_src = f.read()
+	cpp_src = "std::vector<torch::Tensor> dequantize_dense_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+	"std::vector<torch::Tensor> dequantize_conv1d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+	"std::vector<torch::Tensor> dequantize_conv2d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t d4, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+	"std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);"
+	module = load_cuda(cuda_src, cpp_src,
+					['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_layernorm_hex'],
+					verbose=True)
+
 	### Dequantizing ###
 	pack_size = int(quant_config['pack_size'])
 	quant_size = int(quant_config['quant_size'])
-	batch_shift = int(pack_size * (quant_size / 4))
 	hpn = int(quant_size / 4) #Hex Per Number
-	half_point = int((2**quant_size) / 2)
 	weights = {}
-	progress = tqdm(total=len(config_data['config']['layers'])-1, desc="Dequantizing weights", unit="layer", miniters=1, mininterval=0)
 	ptr = 0
-	for layer in config_data['config']['layers']:
+	for layer in tqdm(config_data['config']['layers'], desc="Dequantizing weights", unit="layer", miniters=1, mininterval=0):
 		layer_data = []
 		if layer['class_name'] == 'InputLayer':
 			continue
 		if layer['class_name'] == 'Dense':
 			d1 = layer['build_config']['input_shape'][1]
 			d2 = layer['config']['units']
-			w = np.array([])
-			batches = d2 // pack_size
 			if d2 >= pack_size:
 				layer_data = bin_data[ptr:ptr+(((((d1+1)*d2)//pack_size)*8) if d2>=pack_size else 0)+(8*(d1+1) if d2%pack_size != 0 else 0)+(((d1+1)*(d2+(d2%2)))*hpn)]
-				for i in range(d1):
-					w2 = np.array([])
-					ptr_2 = (i*batches*(8+batch_shift)) + (i*(d2-(batches*batch_shift)+(d2%2))) + (i*(8 if (batches*batch_shift) < d2 else 0))
-					if d2 >= pack_size:
-						for j in range(batches):
-							scale_hex = layer_data[ptr_2+(j*(8+batch_shift)):(ptr_2+(j*(8+batch_shift)))+8]
-							scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-							data_hex = layer_data[(ptr_2+(j*(8+batch_shift)))+8:(ptr_2+(j*(8+batch_shift)))+(8+batch_shift)]
-							for k in range(0, batch_shift//2):
-								byte = int(data_hex[k*2:(k*2)+2], 16)
-								if (quant_size == 4):
-									n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-									if not literal:
-										w2 = np.append(w2, n1 * scale)
-									else:
-										w2 = np.append(w2, n1)
-									n2 = (byte & 0x0F)
-									if (n2 != 0):
-										if not literal:
-											w2 = np.append(w2, (n2 - (half_point if balanced else 0)) * scale)
-										else:
-											w2 = np.append(w2, (n2 - (half_point if balanced else 0)))
-								elif (quant_size == 8):
-									n = byte - (half_point if balanced else 0)
-									if not literal:
-										w2 = np.append(w2, n * scale)
-									else:
-										w2 = np.append(w2, n)
+				out_tensors = module.dequantize_dense_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, pack_size, quant_size, balanced, literal)
 
-					if d2 % pack_size != 0:
-						irreg_shift = int((d2 % pack_size) * (quant_size / 4))
-						scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
-						scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-						data_hex = layer_data[ptr_2+(batches*(8+batch_shift))+8:ptr_2+(batches*(8+batch_shift))+(8+irreg_shift)]
-
-						for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
-							byte = int(data_hex[k*2:(k*2)+2], 16)
-							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-								if not literal:
-									w2 = np.append(w2, n1 * scale)
-								else:
-									w2 = np.append(w2, n1)
-								n2 = (byte & 0x0F)
-								if (n2 != 0):
-									if not literal:
-										w2 = np.append(w2, (n2 - (half_point if balanced else 0)) * scale)
-									else:
-										w2 = np.append(w2, (n2 - (half_point if balanced else 0)))
-							elif (quant_size == 8):
-								n = byte - (half_point if balanced else 0)
-								if not literal:
-									w2 = np.append(w2, n * scale)
-								else:
-									w2 = np.append(w2, n)
-					if len(w) == 0:
-						w = w2
-					else:
-						w = np.vstack((w, w2))
-
-				ptr_2 = (d1*batches*(8+batch_shift)) + (d1*(d2-(batches*batch_shift)+(d2%2))) + (d1*(8 if (batches*batch_shift) < d2 else 0))
-				w3 = np.array([])
-				if (d2 >= pack_size):
-					for i in range(batches):
-						scale_hex = layer_data[ptr_2+(i*(8+batch_shift)):ptr_2+(i*(8+batch_shift))+8]
-						scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-						data_hex = layer_data[ptr_2+(i*(8+batch_shift))+8:ptr_2+(i*(8+batch_shift))+(8+batch_shift)]
-						for k in range(0, batch_shift//2):
-							byte = int(data_hex[k*2:(k*2)+2], 16)
-							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-								if not literal:
-									w3 = np.append(w3, n1 * scale)
-								else:
-									w3 = np.append(w3, n1)
-								n2 = (byte & 0x0F)
-								if (n2 != 0):
-									if not literal:
-										w3 = np.append(w3, (n2 - (half_point if balanced else 0)) * scale)
-									else:
-										w3 = np.append(w3, (n2 - (half_point if balanced else 0)))
-							elif (quant_size == 8):
-								n = byte - (half_point if balanced else 0)
-								if not literal:
-									w3 = np.append(w3, n * scale)
-								else:
-									w3 = np.append(w3, n)
-
-				if d2 % pack_size != 0:
-					irreg_shift = int((d2 % pack_size) * (quant_size / 4))
-					scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
-					scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-					data_hex = layer_data[ptr_2+(batches*(8+batch_shift))+8:ptr_2+(batches*(8+batch_shift))+(8+irreg_shift)]
-					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
-						byte = int(data_hex[k*2:(k*2)+2], 16)
-						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-							if not literal:
-								w3 = np.append(w3, n1 * scale)
-							else:
-								w3 = np.append(w3, n1)
-							n2 = (byte & 0x0F)
-							if (n2 != 0):
-								if not literal:
-									w3 = np.append(w3, (n2 - (half_point if balanced else 0)) * scale)
-								else:
-									w3 = np.append(w3, (n2 - (half_point if balanced else 0)))
-						elif (quant_size == 8):
-							n = byte - (half_point if balanced else 0)
-							if not literal:
-								w3 = np.append(w3, n * scale)
-							else:
-								w3 = np.append(w3, n)
-
-				weights[layer['config']['name']] = [w, w3]
+				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
 			else:
 				layer_data = bin_data[ptr:ptr+((d1+1)*d2*8)]
+				w = np.array([])
 				for i in range(d1):
 					w2 = np.array([])
 					for j in range(d2):
@@ -341,131 +226,14 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 			d1 = layer['build_config']['input_shape'][1]
 			d2 = layer['build_config']['input_shape'][2]
 			d3 = layer['config']['filters']
-			w = np.array([])
-			batches = d3 // pack_size
 			if d3 >= pack_size:
 				layer_data = bin_data[ptr:ptr+((((((d1*d2)+1)*d3)//pack_size)*8) if d3>=pack_size else 0)+(8*((d1*d2)+1) if d3%pack_size != 0 else 0)+((((d1*d2)+1)*(d3+(d3%2)))*hpn)]
-				for i in range(d1):
-					w2 = np.array([])
-					for j in range(d2):
-						w3 = np.array([])
-						ptr_2 = (i*batches*(8+batch_shift)) + (i*(d3-(batches*batch_shift)+(d3%2))) + (i*(8 if (batches*batch_shift) < d3 else 0))
-						if d3 >= pack_size:
-							for k in range(batches):
-								scale_hex = layer_data[ptr_2+(k*(8+batch_shift)):ptr_2+(k*(8+batch_shift))+8]
-								scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-								data_hex = layer_data[(ptr_2+(k*(8+batch_shift)))+8:(ptr_2+(k*(8+batch_shift)))+(8+batch_shift)]
-								for l in range(0, batch_shift//2):
-									byte = int(data_hex[l*2:(l*2)+2], 16)
-									if (quant_size == 4):
-										n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-										if not literal:
-											w3 = np.append(w3, n1 * scale)
-										else:
-											w3 = np.append(w3, n1)
-										n2 = (byte & 0x0F)
-										if (n2 != 0):
-											if not literal:
-												w3 = np.append(w3, (n2 - (half_point if balanced else 0)) * scale)
-											else:
-												w3 = np.append(w3, (n2 - (half_point if balanced else 0)))
-									elif (quant_size == 8):
-										n = byte - (half_point if balanced else 0)
-										if not literal:
-											w3 = np.append(w3, n * scale)
-										else:
-											w3 = np.append(w3, n)
-						if d3 % pack_size != 0:
-							irreg_shift = int((d3 % pack_size) * (quant_size / 4))
-							scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
-							scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-							data_hex = layer_data[ptr_2+(batches*(8+batch_shift))+8:ptr_2+(batches*(8+batch_shift))+(8+irreg_shift)]
-							
-							for l in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
-								byte = int(data_hex[l*2:(l*2)+2], 16)
-								if (quant_size == 4):
-									n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-									if not literal:
-										w3 = np.append(w3, n1 * scale)
-									else:
-										w3 = np.append(w3, n1)
-									n2 = (byte & 0x0F)
-									if (n2 != 0):
-										if not literal:
-											w3 = np.append(w3, (n2 - (half_point if balanced else 0)) * scale)
-										else:
-											w3 = np.append(w3, (n2 - (half_point if balanced else 0)))
-								elif (quant_size == 8):
-									n = byte - (half_point if balanced else 0)
-									if not literal:
-										w3 = np.append(w3, n * scale)
-									else:
-										w3 = np.append(w3, n)
-						if len(w2) == 0:
-							w2 = w3
-						else:
-							w2 = np.vstack((w2, w3))
-					if len(w) == 0:
-						w = w2
-					else:
-						w = np.vstack((w, w2))
-
-				ptr_2 = ((d1*d2)*batches*(8+batch_shift)) + ((d1*d2)*(d3-(batches*batch_shift)+(d3%2))) + ((d1*d2)*(8 if (batches*batch_shift) < d3 else 0))
-				w4 = np.array([])
-				if (d3 >= pack_size):
-					for i in range(batches):
-						scale_hex = layer_data[ptr_2+(i*(8+batch_shift)):ptr_2+(i*(8+batch_shift))+8]
-						scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-						data_hex = layer_data[ptr_2+(i*(8+batch_shift))+8:ptr_2+(i*(8+batch_shift))+(8+batch_shift)]
-						for k in range(0, batch_shift//2):
-							byte = int(data_hex[k*2:(k*2)+2], 16)
-							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-								if not literal:
-									w4 = np.append(w4, n1 * scale)
-								else:
-									w4 = np.append(w4, n1)
-								n2 = (byte & 0x0F)
-								if (n2 != 0):
-									if not literal:
-										w4 = np.append(w4, (n2 - (half_point if balanced else 0)) * scale)
-									else:
-										w4 = np.append(w4, (n2 - (half_point if balanced else 0)))
-							elif (quant_size == 8):
-								n = byte - (half_point if balanced else 0)
-								if not literal:
-									w4 = np.append(w4, n * scale)
-								else:
-									w4 = np.append(w4, n)
+				out_tensors = module.dequantize_conv1d_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, d3, pack_size, quant_size, balanced, literal)
 				
-				if d3 % pack_size != 0:
-					irreg_shift = int((d3 % pack_size) * (quant_size / 4))
-					scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
-					scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-					data_hex = layer_data[ptr_2+(batches*(8+batch_shift))+8:ptr_2+(batches*(8+batch_shift))+(8+irreg_shift)]
-					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
-						byte = int(data_hex[k*2:(k*2)+2], 16)
-						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-							if not literal:
-								w4 = np.append(w4, n1 * scale)
-							else:
-								w4 = np.append(w4, n1)
-							n2 = (byte & 0x0F)
-							if (n2 != 0):
-								if not literal:
-									w4 = np.append(w4, (n2 - (half_point if balanced else 0)) * scale)
-								else:
-									w4 = np.append(w4, (n2 - (half_point if balanced else 0)))
-						elif (quant_size == 8):
-							n = byte - (half_point if balanced else 0)
-							if not literal:
-								w4 = np.append(w4, n * scale)
-							else:
-								w4 = np.append(w4, n)
-				weights[layer['config']['name']] = [w, w4]
+				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
 			else:
 				layer_data = bin_data[ptr:ptr+(((d1*d2)+1)*d3*8)]
+				w = np.array([])
 				for i in range(d1):
 					w2 = np.array([])
 					for j in range(d2):
@@ -495,137 +263,14 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 			d2 = layer['build_config']['input_shape'][2]
 			d3 = layer['build_config']['input_shape'][3]
 			d4 = layer['config']['filters']
-			w = np.array([])
-			batches = d4 // pack_size
 			if d4 >= pack_size:
 				layer_data = bin_data[ptr:ptr+((((((d1*d2*d3)+1)*d4)//pack_size)*8) if d4>=pack_size else 0)+(8*((d1*d2*d3)+1) if d4%pack_size != 0 else 0)+((((d1*d2*d3)+1)*(d4+(d4%2)))*hpn)]
-				for i in range(d1):
-					w2 = np.array([])
-					for j in range(d2):
-						w3 = np.array([])
-						for k in range(d3):
-							w4 = np.array([])
-							ptr_2 = (i*batches*(8+batch_shift)) + (i*(d4-(batches*batch_shift)+(d4%2))) + (i*(8 if (batches*batch_shift) < d4 else 0))
-							if d4 >= pack_size:
-								for l in range(batches):
-									scale_hex = layer_data[ptr_2+(l*(8+batch_shift)):ptr_2+(l*(8+batch_shift))+8]
-									scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-									data_hex = layer_data[(ptr_2+(l*(8+batch_shift)))+8:(ptr_2+(l*(8+batch_shift)))+(8+batch_shift)]
-									for m in range(0, batch_shift//2):
-										byte = int(data_hex[m*2:(m*2)+2], 16)
-										if (quant_size == 4):
-											n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-											if not literal:
-												w4 = np.append(w4, n1 * scale)
-											else:
-												w4 = np.append(w4, n1)
-											n2 = (byte & 0x0F)
-											if (n2 != 0):
-												if not literal:
-													w4 = np.append(w4, (n2 - (half_point if balanced else 0)) * scale)
-												else:
-													w4 = np.append(w4, (n2 - (half_point if balanced else 0)))
-										elif (quant_size == 8):
-											n = byte - (half_point if balanced else 0)
-											if not literal:
-												w4 = np.append(w4, n * scale)
-											else:
-												w4 = np.append(w4, n)
-							if d4 % pack_size != 0:
-								irreg_shift = int((d4 % pack_size) * (quant_size / 4))
-								scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
-								scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-								data_hex = layer_data[ptr_2+(batches*(8+batch_shift))+8:ptr_2+(batches*(8+batch_shift))+(8+irreg_shift)]
-								
-								for m in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
-									byte = int(data_hex[m*2:(m*2)+2], 16)
-									if (quant_size == 4):
-										n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-										if not literal:
-											w4 = np.append(w4, n1 * scale)
-										else:
-											w4 = np.append(w4, n1)
-										n2 = (byte & 0x0F)
-										if (n2 != 0):
-											if not literal:
-												w4 = np.append(w4, (n2 - (half_point if balanced else 0)) * scale)
-											else:
-												w4 = np.append(w4, (n2 - (half_point if balanced else 0)))
-									elif (quant_size == 8):
-										n = byte - (half_point if balanced else 0)
-										if not literal:
-											w4 = np.append(w4, n * scale)
-										else:
-											w4 = np.append(w4, n)
-							if len(w3) == 0:
-								w3 = w4
-							else:
-								w3 = np.vstack((w3, w4))
-						if len(w2) == 0:
-							w2 = w3
-						else:
-							w2 = np.vstack((w2, w3))
-					if len(w) == 0:
-						w = w2
-					else:
-						w = np.vstack((w, w2))
+				out_tensors = module.dequantize_conv2d_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, d3, d4, pack_size, quant_size, balanced, literal)
 
-				ptr_2 = ((d1*d2*d3)*batches*(8+batch_shift)) + ((d1*d2*d3)*(d4-(batches*batch_shift)+(d4%2))) + ((d1*d2*d3)*(8 if (batches*batch_shift) < d4 else 0))
-				w5 = np.array([])
-				if (d4 >= pack_size):
-					for i in range(batches):
-						scale_hex = layer_data[ptr_2+(i*(8+batch_shift)):ptr_2+(i*(8+batch_shift))+8]
-						scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-						data_hex = layer_data[ptr_2+(i*(8+batch_shift))+8:ptr_2+(i*(8+batch_shift))+(8+batch_shift)]
-						for k in range(0, batch_shift//2):
-							byte = int(data_hex[k*2:(k*2)+2], 16)
-							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-								if not literal:
-									w5 = np.append(w5, n1 * scale)
-								else:
-									w5 = np.append(w5, n1)
-								n2 = (byte & 0x0F)
-								if (n2 != 0):
-									if not literal:
-										w5 = np.append(w5, (n2 - (half_point if balanced else 0)) * scale)
-									else:
-										w5 = np.append(w5, (n2 - (half_point if balanced else 0)))
-							elif (quant_size == 8):
-								n = byte - (half_point if balanced else 0)
-								if not literal:
-									w5 = np.append(w5, n * scale)
-								else:
-									w5 = np.append(w5, n)
-
-				if d4 % pack_size != 0:
-					irreg_shift = int((d4 % pack_size) * (quant_size / 4))
-					scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
-					scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-					data_hex = layer_data[ptr_2+(batches*(8+batch_shift))+8:ptr_2+(batches*(8+batch_shift))+(8+irreg_shift)]
-					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
-						byte = int(data_hex[k*2:(k*2)+2], 16)
-						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-							if not literal:
-								w5 = np.append(w5, n1 * scale)
-							else:
-								w5 = np.append(w5, n1)
-							n2 = (byte & 0x0F)
-							if (n2 != 0):
-								if not literal:
-									w5 = np.append(w5, (n2 - (half_point if balanced else 0)) * scale)
-								else:
-									w5 = np.append(w5, (n2 - (half_point if balanced else 0)))
-						elif (quant_size == 8):
-							n = byte - (half_point if balanced else 0)
-							if not literal:
-								w5 = np.append(w5, n * scale)
-							else:
-								w5 = np.append(w5, n)
-				weights[layer['config']['name']] = [w, w5]
+				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
 			else:
 				layer_data = bin_data[ptr:ptr+(((d1*d2*d3)+1)*d4*8)]
+				w = np.array([])
 				for i in range(d1):
 					w2 = np.array([])
 					for j in range(d2):
@@ -658,115 +303,11 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 
 		if layer['class_name'] == 'LayerNormalization':
 			d1 = layer['build_config']['input_shape'][-1]
-			layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2))*hpn))*2]
-			w = np.array([])
-			batches = d1 // pack_size
-			ptr_2 = 0
 			if (d1 >= pack_size):
-				if (d1 >= pack_size):
-					for i in range(d1//pack_size):
-						scale_hex = layer_data[i*(8+batch_shift):(i*(8+batch_shift))+8]
-						scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-						data_hex = layer_data[(i*(8+batch_shift))+8:(i*(8+batch_shift))+(8+batch_shift)]
-						for k in range(0, batch_shift//2):
-							byte = int(data_hex[k*2:(k*2)+2], 16)
-							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-								if not literal:
-									w = np.append(w, n1 * scale)
-								else:
-									w = np.append(w, n1)
-								n2 = (byte & 0x0F)
-								if (n2 != 0):
-									if not literal:
-										w = np.append(w, (n2 - (half_point if balanced else 0)) * scale)
-									else:
-										w = np.append(w, (n2 - (half_point if balanced else 0)))
-							elif (quant_size == 8):
-								n = byte - (half_point if balanced else 0)
-								if not literal:
-									w = np.append(w, n * scale)
-								else:
-									w = np.append(w, n)
-				if d1 % pack_size != 0:
-					irreg_shift = int((d1 % pack_size) * (quant_size / 4))
-					scale_hex = layer_data[batches*(8+batch_shift):(batches*(8+batch_shift))+8]
-					scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-					data_hex = layer_data[(batches*(8+batch_shift))+8:(batches*(8+batch_shift))+(8+irreg_shift)]
-					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
-						byte = int(data_hex[k*2:(k*2)+2], 16)
-						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-							if not literal:
-								w = np.append(w, n1 * scale)
-							else:
-								w = np.append(w, n1)
-							n2 = (byte & 0x0F)
-							if (n2 != 0):
-								if not literal:
-									w = np.append(w, (n2 - (half_point if balanced else 0)) * scale)
-								else:
-									w = np.append(w, (n2 - (half_point if balanced else 0)))
-						elif (quant_size == 8):
-							n = byte - (half_point if balanced else 0)
-							if not literal:
-								w = np.append(w, n * scale)
-							else:
-								w = np.append(w, n)
-				ptr_2 = batches*(8+batch_shift) + (d1-(batches*batch_shift)+(d1%2)) + (8 if batches*batch_shift < d1 else 0)
-				w2 = np.array([])
-				if (d1 >= pack_size):
-					for i in range(d1//pack_size):
-						scale_hex = layer_data[ptr_2+(i*(8+batch_shift)):ptr_2+(i*(8+batch_shift))+8]
-						scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-						data_hex = layer_data[ptr_2+(i*(8+batch_shift))+8:ptr_2+(i*(8+batch_shift))+(8+batch_shift)]
-						for k in range(0, batch_shift//2):
-							byte = int(data_hex[k*2:(k*2)+2], 16)
-							if (quant_size == 4):
-								n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-								if not literal:
-									w2 = np.append(w2, n1 * scale)
-								else:
-									w2 = np.append(w2, n1)
-								n2 = (byte & 0x0F)
-								if (n2 != 0):
-									if not literal:
-										w2 = np.append(w2, (n2 - (half_point if balanced else 0)) * scale)
-									else:
-										w2 = np.append(w2, (n2 - (half_point if balanced else 0)))
-							elif (quant_size == 8):
-								n = byte - (half_point if balanced else 0)
-								if not literal:
-									w2 = np.append(w2, n * scale)
-								else:
-									w2 = np.append(w2, n)
-					ptr_2 += batches*(8+batch_shift)
-				if d1 % pack_size != 0:
-					irreg_shift = int((d1 % pack_size) * (quant_size / 4))
-					scale_hex = layer_data[ptr_2+(batches*(8+batch_shift)):ptr_2+(batches*(8+batch_shift))+8]
-					scale = struct.unpack('>f', bytes.fromhex(scale_hex))[0]
-					data_hex = layer_data[ptr_2+(batches*(8+batch_shift))+8:ptr_2+(batches*(8+batch_shift))+(8+irreg_shift)]
-					for k in range(0, (irreg_shift // 2) + (irreg_shift % 2)):
-						byte = int(data_hex[k*2:(k*2)+2], 16)
-						if (quant_size == 4):
-							n1 = ((byte >> 4) & 0x0F) - (half_point if balanced else 0)
-							if not literal:
-								w2 = np.append(w2, n1 * scale)
-							else:
-								w2 = np.append(w2, n1)
-							n2 = (byte & 0x0F)
-							if (n2 != 0):
-								if not literal:
-									w2 = np.append(w2, (n2 - (half_point if balanced else 0)) * scale)
-								else:
-									w2 = np.append(w2, (n2 - (half_point if balanced else 0)))
-						elif (quant_size == 8):
-							n = byte - (half_point if balanced else 0)
-							if not literal:
-								w2 = np.append(w2, n * scale)
-							else:
-								w2 = np.append(w2, n)
-				weights[layer['config']['name']] = [w, w2]
+				layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2))*hpn))*2]
+				out_tensors = module.dequantize_layernorm_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, pack_size, quant_size, balanced, literal)
+
+				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
 			else:
 				layer_data = bin_data[ptr:ptr+((d1*8)*2)]
 				w = np.array([])
@@ -783,8 +324,6 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 				weights[layer['config']['name']] = [w, w2]
 
 		ptr += len(layer_data)
-
-		progress.update(1)
 
 	#devnull = os_open('/dev/null', O_WRONLY); dup2(devnull, 1); dup2(devnull, 2)
 	

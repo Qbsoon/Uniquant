@@ -75,19 +75,21 @@ del(model)
 del(X_train)
 del(y_train)
 
-progress = tqdm(total=10, desc="Tests", unit="test", miniters=1, mininterval=0)
-for quant_size in [4]:
-	for num in [32,64,16,8,128]:
+quant_t = [4]
+num_t = [32]
+progress = tqdm(total=len(quant_t)*len(num_t), desc="Tests", unit="test", miniters=1, mininterval=0)
+for quant_size in quant_t:
+	for num in num_t:
 		quantize("model.keras", quant_name='m'+str(num)+"_"+str(quant_size), overwrite=True, pack_size=num, quant_size=quant_size)
-		#model = dequantize("m"+str(num)+"_"+str(quant_size)+".uniq")
-		#y_pred = model.predict(X_test).flatten()
-		#mae = mean_absolute_error(y_test, y_pred)
-		#mse = mean_squared_error(y_test, y_pred)
-		#rmse = np.sqrt(mse)
-		#print(f"MAE: {mae}, MSE: {mse}, RMSE: {rmse}")
-		#results.append({"mae": mae, "mse": mse, "rmse": rmse})
-		#del model
-		#progress.update(1)
+		model = dequantize("m"+str(num)+"_"+str(quant_size)+".uniq")
+		y_pred = model.predict(X_test).flatten()
+		mae = mean_absolute_error(y_test, y_pred)
+		mse = mean_squared_error(y_test, y_pred)
+		rmse = np.sqrt(mse)
+		print(f"MAE: {mae}, MSE: {mse}, RMSE: {rmse}")
+		results.append({"mae": mae, "mse": mse, "rmse": rmse})
+		del model
+		progress.update(1)
 
-	#with open(f"test_results_{quant_size}bit_32_64_16_8_128.json", "w") as f:
-		#json.dump(results, f, indent=4)
+	with open(f"test_results_32_literal.json", "w") as f:
+		json.dump(results, f, indent=4)
