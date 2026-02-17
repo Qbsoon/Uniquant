@@ -59,7 +59,7 @@ __global__ void dequant_hex_kernel(
 
 	int64_t rows = 0;
 
-	if (mode == 0) {
+	if (mode == 0 || mode == 4) {
 		batches = d2 / pack_size;
 		rem = d2 % pack_size;
 		rem_shift = (int64_t)(rem * (quant_size / 4.0f));
@@ -93,7 +93,9 @@ __global__ void dequant_hex_kernel(
 	int is_bias = 0;
 	int64_t pos = idx;
 
-	if (mode == 3) {
+	if (mode == 4) {
+		is_bias = 0;
+	} else if (mode == 3) {
 		if (pos >= elems_weights) {
 			is_second = 1;
 			pos -= elems_weights;
@@ -109,7 +111,7 @@ __global__ void dequant_hex_kernel(
 	int64_t row = 0;
 	int64_t col = 0;
 
-	if (mode == 0) {
+	if (mode == 0 || mode == 4) {
 		if (!is_bias) {
 			row = pos / d2;
 			col = pos - row * d2;
@@ -237,6 +239,9 @@ static std::vector<torch::Tensor> dequantize_hex_impl(
 	} else if (mode == 2) {
 		TORCH_CHECK(d4 >= pack_size, "d4 must be >= pack_size");
 		total = d1 * d2 * d3 * d4 + d4;
+	} else if (mode == 4) {
+		TORCH_CHECK(d2 >= pack_size, "d2 must be >= pack_size");
+		total = d1 * d2;
 	} else {
 		TORCH_CHECK(d1 >= pack_size, "d1 must be >= pack_size");
 		total = d1 + d1;
@@ -249,7 +254,8 @@ static std::vector<torch::Tensor> dequantize_hex_impl(
 	if (mode == 0) out_b_gpu = torch::empty({d2}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kFloat32));
 	else if (mode == 1) out_b_gpu = torch::empty({d3}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kFloat32));
 	else if (mode == 2) out_b_gpu = torch::empty({d4}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kFloat32));
-	else out_b_gpu = torch::empty({d1}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kFloat32));
+	else if (mode == 3) out_b_gpu = torch::empty({d1}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kFloat32));
+	else out_b_gpu = torch::empty({1}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kFloat32));
 
 	int threads = 256;
 	int grid = (int)cdiv_i64(total, threads);
@@ -284,6 +290,9 @@ static std::vector<torch::Tensor> dequantize_hex_impl(
 		auto b = out_b_gpu.to(torch::kCPU);
 		return { w, b };
 	}
+	if (mode == 4) {
+		return { out_a_gpu.to(torch::kCPU) };
+	}
 	auto a = out_a_gpu.narrow(0, 0, d1).to(torch::kCPU);
 	auto b = out_b_gpu.to(torch::kCPU);
 	return { a, b };
@@ -299,6 +308,24 @@ std::vector<torch::Tensor> dequantize_conv1d_hex(torch::Tensor hex_cpu, int64_t 
 
 std::vector<torch::Tensor> dequantize_conv2d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t d4, int64_t pack_size, int quant_size, bool balanced, bool literal) {
 	return dequantize_hex_impl(2, hex_cpu, d1, d2, d3, d4, pack_size, quant_size, balanced, literal);
+}
+
+std::vector<torch::Tensor> dequantize_gru_hex(torch::Tensor hex_cpu, int64_t d1, int64_t units, int64_t biases, int64_t pack_size, int quant_size, bool balanced, bool literal) {
+	int64_t d2 = 3 * units;
+	int64_t rows = d1 + units + biases;
+
+	auto tmp = dequantize_hex_impl(4, hex_cpu, rows, d2, 0, 0, pack_size, quant_size, balanced, literal);
+	auto flat = tmp[0];
+
+	auto full = flat.view({rows, d2});
+	auto w_in = full.narrow(0, 0, d1).contiguous();
+	auto w_rec = full.narrow(0, d1, units).contiguous();
+	auto b2d = full.narrow(0, d1 + units, biases).contiguous();
+	if (biases == 1) {
+		auto b1d = b2d.view({d2}).contiguous();
+		return { w_in, w_rec, b1d };
+	}
+	return { w_in, w_rec, b2d };
 }
 
 std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal) {

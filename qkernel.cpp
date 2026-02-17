@@ -187,14 +187,14 @@ torch::Tensor quantize_pack_1d(torch::Tensor w_cpu, int64_t pack_size, int quant
 	return quantize_pack_impl(0, w_cpu, pack_size, quant_size);
 }
 
-torch::Tensor quantize_pack_dense(torch::Tensor w_cpu, int64_t pack_size, int quant_size) {
+torch::Tensor quantize_pack_2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size) {
 	return quantize_pack_impl(1, w_cpu, pack_size, quant_size);
 }
 
-torch::Tensor quantize_pack_conv1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size) {
+torch::Tensor quantize_pack_3d(torch::Tensor w_cpu, int64_t pack_size, int quant_size) {
 	return quantize_pack_impl(2, w_cpu, pack_size, quant_size);
 }
 
-torch::Tensor quantize_pack_conv2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size) {
+torch::Tensor quantize_pack_4d(torch::Tensor w_cpu, int64_t pack_size, int quant_size) {
 	return quantize_pack_impl(3, w_cpu, pack_size, quant_size);
 }

@@ -77,12 +77,12 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 						extra_cuda_cflags=["-O2"] if opt else [], verbose=verbose, name="inline_ext")
 	with open('qkernel.cpp', 'r') as f:
 		cuda_src = f.read()
-	cpp_src = "torch::Tensor quantize_pack_dense(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
-	"torch::Tensor quantize_pack_conv1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
-	"torch::Tensor quantize_pack_conv2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+	cpp_src = "torch::Tensor quantize_pack_2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+	"torch::Tensor quantize_pack_3d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+	"torch::Tensor quantize_pack_4d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
 	"torch::Tensor quantize_pack_1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);"
 	module = load_cuda(cuda_src, cpp_src,
-					['quantize_pack_dense', 'quantize_pack_conv1d', 'quantize_pack_conv2d', 'quantize_pack_1d'],
+					['quantize_pack_2d', 'quantize_pack_3d', 'quantize_pack_4d', 'quantize_pack_1d'],
 					verbose=True)
 
 	### Quantizing ###
@@ -90,43 +90,42 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 		for layer in tqdm(model.layers, desc="Quantizing weights", unit="layer", miniters=1, mininterval=0):
 			for weight in layer.weights:
 				w = weight.numpy()
-				if weight.name == 'kernel':
-					if layer.name.find('dense') != -1:
-						if w.shape[1] >= pack_size:
-							out_bytes = module.quantize_pack_dense_fullblocks(torch.from_numpy(w), pack_size, quant_size)
-							f.write(out_bytes.numpy().tobytes())
-						else:
-							for i in range(w.shape[0]):
-								for j in range(0, w.shape[1], pack_size):
-									w_block = w[i][j:j+pack_size]
-									for k in w_block:
-										f.write(struct.pack('>f', k))
-					elif layer.name.find('conv1d') != -1:
-						if w.shape[2] >= pack_size:
-							out_bytes = module.quantize_pack_conv1d_fullblocks(torch.from_numpy(w), pack_size, quant_size)
-							f.write(out_bytes.numpy().tobytes())
-						else:
-							for i in range(w.shape[0]):
-								for j in range(w.shape[1]):
-									for k in range(0, w.shape[2], pack_size):
-										w_block = w[i][j][k:k+pack_size]
-										for l in w_block:
-											f.write(struct.pack('>f', l))
-					elif layer.name.find('conv2d') != -1:
-						if w.shape[3] >= pack_size:
-							out_bytes = module.quantize_pack_conv2d_fullblocks(torch.from_numpy(w), pack_size, quant_size)
-							f.write(out_bytes.numpy().tobytes())
-						else:
-							for i in range(w.shape[0]):
-								for j in range(w.shape[1]):
-									for k in range(w.shape[2]):
-										for l in range(0, w.shape[3], pack_size):
-											w_block = w[i][j][k][l:l+pack_size]
-											for m in w_block:
-												f.write(struct.pack('>f', m))
+				if weight.ndim == 2:
+					if w.shape[1] >= pack_size:
+						out_bytes = module.quantize_pack_2d(torch.from_numpy(w), pack_size, quant_size)
+						f.write(out_bytes.numpy().tobytes())
+					else:
+						for i in range(w.shape[0]):
+							for j in range(0, w.shape[1], pack_size):
+								w_block = w[i][j:j+pack_size]
+								for k in w_block:
+									f.write(struct.pack('>f', k))
+				elif weight.ndim == 3:
+					if w.shape[2] >= pack_size:
+						out_bytes = module.quantize_pack_3d(torch.from_numpy(w), pack_size, quant_size)
+						f.write(out_bytes.numpy().tobytes())
+					else:
+						for i in range(w.shape[0]):
+							for j in range(w.shape[1]):
+								for k in range(0, w.shape[2], pack_size):
+									w_block = w[i][j][k:k+pack_size]
+									for l in w_block:
+										f.write(struct.pack('>f', l))
+				elif weight.ndim == 4:
+					if w.shape[3] >= pack_size:
+						out_bytes = module.quantize_pack_4d(torch.from_numpy(w), pack_size, quant_size)
+						f.write(out_bytes.numpy().tobytes())
+					else:
+						for i in range(w.shape[0]):
+							for j in range(w.shape[1]):
+								for k in range(w.shape[2]):
+									for l in range(0, w.shape[3], pack_size):
+										w_block = w[i][j][k][l:l+pack_size]
+										for m in w_block:
+											f.write(struct.pack('>f', m))
 				else:
 					if w.shape[0] >= pack_size:
-						out_bytes = module.quantize_pack_1d_fullblocks(torch.from_numpy(w).reshape(-1), pack_size, quant_size)
+						out_bytes = module.quantize_pack_1d(torch.from_numpy(w).reshape(-1), pack_size, quant_size)
 						f.write(out_bytes.numpy().tobytes())
 					else:
 						for i in range(0, w.shape[0], pack_size):
@@ -178,9 +177,10 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 	cpp_src = "std::vector<torch::Tensor> dequantize_dense_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
 	"std::vector<torch::Tensor> dequantize_conv1d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
 	"std::vector<torch::Tensor> dequantize_conv2d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t d4, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+	"std::vector<torch::Tensor> dequantize_gru_hex(torch::Tensor hex_cpu, int64_t d1, int64_t units, int64_t biases, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
 	"std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);"
 	module = load_cuda(cuda_src, cpp_src,
-					['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_layernorm_hex'],
+					['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_gru_hex', 'dequantize_layernorm_hex'],
 					verbose=True)
 
 	### Dequantizing ###
@@ -300,6 +300,20 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 					w5 = np.append(w5, n0)
 
 				weights[layer['config']['name']] = [w, w5]
+		
+		if layer['class_name'] == 'GRU':
+			d1 = layer['build_config']['input_shape'][-1]
+			gates = 3
+			units = layer['config']['units']
+			biases = 2 if layer['config']['reset_after'] else 1
+			d2 = gates * units
+			w = np.array([])
+			batches = d2 // pack_size
+			if d2 >= pack_size:
+				layer_data = bin_data[ptr:ptr+(((((d1+units+biases)*d2)//pack_size)*8) if d2>=pack_size else 0)+(8*(d1+units+biases) if d2%pack_size != 0 else 0)+(((d1+units+biases)*(d2+(d2%2)))*hpn)]
+				out_tensors = module.dequantize_gru_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, units, biases, pack_size, quant_size, balanced, literal)
+
+				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1], out_tensors[2]]
 
 		if layer['class_name'] == 'LayerNormalization':
 			d1 = layer['build_config']['input_shape'][-1]
