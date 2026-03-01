@@ -5,6 +5,7 @@
  1. Wstęp
   - Przedstawienie się
   - Przedstawienie tematu
+  - Dlaczego potrzebne
  2. Definicje, na czym polega
   - Defnicja kompresji, kwantyzacji, sieci neuronowej
   - CUDA, kernele CUDA

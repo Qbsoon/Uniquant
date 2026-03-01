@@ -1,0 +1,45 @@
+\section{Opis implementacji}
+Badając metody kwantyzacji modeli sztucznej inteligencji natrafiłem na wzór prostej kompresji wag. Zdecydowałem się skorzystać z niego w ramach tej pracy licencjackiej i stworzyć cały plik w stylu biblioteki w języku Python do szybkiej kwantyzacji i dekwantyzacji wag modeli tensorflow.
+\subsection{Kwantyzacja}
+Skrótowa, punktowa prezentacja procesu kwantyzacji::
+\begin{itemize}
+    \item Wczytywane są warstwy modelu i następuje iteracja po nich,
+    \item Dla każdej warstwy odczytywane są jej wagi,
+    \item Wagi dzielone są na bloki o określonym rozmiarze (np. 32 wagi),
+    \item Dla każdego bloku obliczana jest jej skala według wzoru,
+    \item Każda waga bloku jest dzielona przez skalę i zaokrąglana do najbliższej liczby całkowitej oraz "ściskana" do ustalonego zakresu wartości,
+    \item Takie wagi są przesuwane do pozytywnego zakresu wartości i zapisywane do pliku w postaci binarnej.
+\end{itemize}
+
+Kwantyzacja zaczyna się od pobrania informacji o warstwach modelu i iteracji po ich wagach. Przy każdej warstwie sprawdzana jest liczba jej wymiarów, obsługiwane są warstwy o 1-, 2-, 3- i 4-wymiarowe. Każdy z tych wariantów ma swoją własną ścieżkę w kodzie, ponieważ większa liczba wymiarów wymaga zagnieżdżenia większej liczby pętli.
+Wewnątrz tych pętli wagi są dzielone na bloki o określonym rozmiarze (np. w swoich testach korzystałem z takich wartości dla partii jak 8, 16, 32, 64 i 128). Do kompresji dla każdego bloku wyliczany jest jego współczynnik skalowania według wzoru:
+$\mathit{half\_point} = \frac{2^{\mathit{bits}}}{2}$
+$\mathit{scale} = \frac{\max\!\big(|\mathit{block}|\big)}{\mathit{half\_point} - 1}$
+Gdzie $\mathit{block}$ to zbiór wag w danym bloku, a $\mathit{bits}$ to liczba bitów, na które chcemy skompresować wagi (kod obsługuje opcje 4 i 8 bit).
+Mając skalę, każda waga bloku jest dzielona przez nią i zaokrąglana do najbliższej liczby całkowitej. Następnie jest "ściskana" do zakresu wartości dyktowanego przez liczbę bitów, czyli $[-\mathit{half\_point} - 1, \; \mathit{half\_point} - 1]$.
+Na koniec, aby nie poświęcać jednego bitu na dodatkowe informacje, $\mathit{half\_point}$ jest dodawane do każdej wagi, przesuwając je do pozytywnego zakresu wartości.
+Takie wagi są następnie zapisywane do pliku w postaci binarnej wraz ze skalą. Zapis następuje w formacie: [skala (float32), wagi (uint8)]. Uint8 jest stosowany nawet w przypadku opcji 4-bit, a wtedy do na jedną liczbę uint8 składają się dwie wagi 4-bitowe złożone z sobą ($\mathit{w_1}\text{ << 4 || }\mathit{w_2}$).
+Do pliku binarnego nie trafiają żadne dodatkowe dane i nie są wstawiane żadne separatory między warstwami. Informacje o strukturze modelu, takie jak liczba warstw, ich rozmiary i rodzje, są zachowywane poprzez zapis obok pliku binarnego pliku json, korzystając z wbudowanych funkcji eksportu konfiguracji modelu tensorflow. Dodatkowe informacje, takie jak rozmiar bloku i liczba bitów, są zapisywane do osobnego pliku json.
+Na dysku te trzy pliki nie występują oddzielnie, a są zapisywane do jednego pliku z niestandardowym rozszerzeniem \textit{.uniq}, którego nazwa pochodzi od nazwy wybranej dla biblioteki, \textit{Uniquant}. Plik ten jest w rzeczywistości plikiem typu archiwum. Dzięki temu wszystkie wymagane dane są przechowywane w jednym miejscu, co ułatwia przechowywanie oraz dekwantyzację.
+
+Warto też wspomnieć, że w przypadku, gdy dana warstwa na ostatnim swoim wymiarze ma mniej wag niż określony rozmiar bloku, to jest zapisywana w pełnej postaci float32 bez kompresji. Zostało to dodane z dwóch powodów. Po pierwsze, ułatwia to dekompresję takich warstw. Po drugie, znacznie zmniejsza to wpływ na kompresji na jakość wynikowych wag po dekompresji.
+
+\subsection{Dekwantyzacja}
+Proces dekwantyzacji jest odwrotnością kwantyzacji, ale jest od niej o wiele złożony. Większa trudność wynika z faktu, że kwantyzacja tylko iteruje po kolejnych wagach, a granice warstw są nieprzekraczalne, podczas gdy w dekwantyzacji odczytywane wagi są zapisane w ciągłym wektorze i należy odpowiednio wyliczyć ich granice, odróżnić skale od wag i przypisać je w odpowiednim formacie do odpowiednich warstw modelu.
+Skrótowa, punktowa prezentacja procesu dekwantyzacji:
+\begin{itemize}
+    \item Odczytywane są informacje kwantyzacji z jednego pliku json, a informacje o strukturze modelu z drugiego,
+    \item Odczytywany jest plik binarny z wagami i skalami,
+    \item Następuje iteracja po warstwach modelu,
+    \item Wydzielany jest zakres wag warstwy,
+    \item Wagi są mnożone przez odpowiednie skale i cofane jest ich przesunięcie,
+    \item Takie zdekwantyzowane wagi są przypisywane do odpowiedniej warstwy modelu.
+\end{itemize}
+
+Dekwantyzacja zaczyna się od odczytania informacji o kwantyzacji (rozmiar bloku, liczba bitów) z jednego pliku json z paczki \textit{.uniq} oraz informacji o strukturze modelu z drugiego pliku json. Te drugie wczytywane są funkcjami tensorflow, które odtwarzają z nich model z pustymi wagami. Następnie wczytywany jest plik binarny z wagami i skalami do zmiennej, która będzie przechowywać te wagi przez cały proces dekwantyzacji.
+Po tym rozpoczyna się pętla po warstwach modelu w postaci iteracji po obiektach struktury modelu. Po stronie dekwantyzacji ścieżki kodu nie są podzielone na podstawie liczby wymiarów warstw, a na podstawie nazw typów warstw. Obsługiwane są warstwy Dense, Conv1D, Conv2D, GRU i LayerNormalization. Na początku kodu dla każdej warstwy jest wyliczany zakres jej danych w wektorze wag na podstawie rozmiarów warstwy oraz wskaźnika aktualnej pozycji w wektorze wag, który jest aktualizowany po każdej warstwie.
+$\mathit{w}[\mathit{ptr} : \mathit{ptr} + \mathit{layer\_size}]$
+Gdzie $\mathit{w}$ to wektor wag, $\mathit{ptr}$ to wskaźnik aktualnej pozycji, a $\mathit{layer\_size}$ to liczba bitów danych warstwy (współczynniki skali i wagi). Ta ostatnia zmienna rozmiaru jest wyliczana poprzez pomnożenie razy 4 (lub 8, w zależności od parametru bitów kwantyzacji) liczby wszystkich wag warstwy oraz dodanie do tego pomnożonej przez 32 (liczba bitów reprezentacji skali) liczby bloków warstwy.
+Ponieważ warstwy tensorflow składają się w rzeczywistości z 2 lub więcej macierzy wag, należy brać to pod uwage w trakcie wyliczania zakresu danych warstwy oraz podczas faktycznej dekwantyzacji wag. Liczba macierzy określa liczbę głównych pętli, które będę musiały po sobie następować w obrębie kodu danego typu warstwy, a ilość wymiarów każdej z macierzy oznacza ilość zagnieżdżonych pętli w głównej pętli danej macierzy.
+W faktycznej części dekwantyzacji wag, wewnątrz ciała wspomnianych pętli, korzystając z drugiego, wewnętrznego wskaźnika pozycji, wydzielany jest każdy blok wag wraz z jego współczynnikiem skali. W przypadku kwantyzacji 4-bitowej występuje krok wydobycia obu liczb 4-bitowych z odczytanej liczby 8-bitowej. Następnie wszystkie wagi bloku są mnożone przez skalę i cofane jest ich przesunięcie z kroku kwantyzacji. Z takich zdekwantyzowanych wag jest tworzona macierz o odpowiednich wymiarach, która jest przypisywana do odpowiedniej macierzy warstwy modelu.
+Po zakończeniu dekwantyzacji, funkcja zwraca gotowy model z przypisanymi wagami, który jest gotowy do użycia.
