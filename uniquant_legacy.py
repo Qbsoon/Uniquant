@@ -1,5 +1,4 @@
 ### Uni-Quant Library ###
-import builtins
 
 def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack_size:int = 32, quant_size:int = 4, overwrite:bool = False):
 	

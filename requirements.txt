@@ -1,0 +1,8 @@
+numpy==2.4.2
+keras==3.13.2
+kagglehub==0.4.2
+tqdm==4.67.2
+torch==2.10.0
+xgboost==3.2.0
+pandas==3.0.0
+tensorflow==2.20.0

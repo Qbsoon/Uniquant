@@ -1,5 +1,6 @@
 \section{Opis implementacji}
 Badając metody kwantyzacji modeli sztucznej inteligencji natrafiłem na wzór prostej kompresji wag. Zdecydowałem się skorzystać z niego w ramach tej pracy licencjackiej i stworzyć cały plik w stylu biblioteki w języku Python do szybkiej kwantyzacji i dekwantyzacji wag modeli tensorflow.
+Kod źródłowy powstałej biblioteki, którą nazwałem \textit{Uniquant}, jest dostępny na moim repozytorium GitHub pod adresem \url{https://github.com/Qbsoon/Uniquant}.
 \subsection{Kwantyzacja}
 Skrótowa, punktowa prezentacja procesu kwantyzacji::
 \begin{itemize}
@@ -11,21 +12,23 @@ Skrótowa, punktowa prezentacja procesu kwantyzacji::
     \item Takie wagi są przesuwane do pozytywnego zakresu wartości i zapisywane do pliku w postaci binarnej.
 \end{itemize}
 
-Kwantyzacja zaczyna się od pobrania informacji o warstwach modelu i iteracji po ich wagach. Przy każdej warstwie sprawdzana jest liczba jej wymiarów, obsługiwane są warstwy o 1-, 2-, 3- i 4-wymiarowe. Każdy z tych wariantów ma swoją własną ścieżkę w kodzie, ponieważ większa liczba wymiarów wymaga zagnieżdżenia większej liczby pętli.
-Wewnątrz tych pętli wagi są dzielone na bloki o określonym rozmiarze (np. w swoich testach korzystałem z takich wartości dla partii jak 8, 16, 32, 64 i 128). Do kompresji dla każdego bloku wyliczany jest jego współczynnik skalowania według wzoru:
-$\mathit{half\_point} = \frac{2^{\mathit{bits}}}{2}$
-$\mathit{scale} = \frac{\max\!\big(|\mathit{block}|\big)}{\mathit{half\_point} - 1}$
-Gdzie $\mathit{block}$ to zbiór wag w danym bloku, a $\mathit{bits}$ to liczba bitów, na które chcemy skompresować wagi (kod obsługuje opcje 4 i 8 bit).
-Mając skalę, każda waga bloku jest dzielona przez nią i zaokrąglana do najbliższej liczby całkowitej. Następnie jest "ściskana" do zakresu wartości dyktowanego przez liczbę bitów, czyli $[-\mathit{half\_point} - 1, \; \mathit{half\_point} - 1]$.
-Na koniec, aby nie poświęcać jednego bitu na dodatkowe informacje, $\mathit{half\_point}$ jest dodawane do każdej wagi, przesuwając je do pozytywnego zakresu wartości.
-Takie wagi są następnie zapisywane do pliku w postaci binarnej wraz ze skalą. Zapis następuje w formacie: [skala (float32), wagi (uint8)]. Uint8 jest stosowany nawet w przypadku opcji 4-bit, a wtedy do na jedną liczbę uint8 składają się dwie wagi 4-bitowe złożone z sobą ($\mathit{w_1}\text{ << 4 || }\mathit{w_2}$).
-Do pliku binarnego nie trafiają żadne dodatkowe dane i nie są wstawiane żadne separatory między warstwami. Informacje o strukturze modelu, takie jak liczba warstw, ich rozmiary i rodzje, są zachowywane poprzez zapis obok pliku binarnego pliku json, korzystając z wbudowanych funkcji eksportu konfiguracji modelu tensorflow. Dodatkowe informacje, takie jak rozmiar bloku i liczba bitów, są zapisywane do osobnego pliku json.
+Kwantyzacja zaczyna się od pobrania informacji o warstwach modelu i iteracji po ich wagach. Przy każdej warstwie sprawdzana jest liczba jej wymiarów, obsługiwane są warstwy o 1-, 2-, 3- i 4-wymiarowe. Każdy z tych wariantów ma swoją własną ścieżkę w kodzie, ponieważ większa liczba wymiarów wymaga zagnieżdżenia większej liczby pętli. \\
+Wewnątrz tych pętli wagi są dzielone na bloki o określonym rozmiarze (np. w swoich testach korzystałem z takich wartości dla partii jak 8, 16, 32, 64 i 128). Do kompresji dla każdego bloku wyliczany jest jego współczynnik skalowania według wzoru: \\
+\vspace{-1.5em}
+\begin{center}
+$\mathit{half\_point} = \frac{2^{\mathit{bits}}}{2}$ \qquad $\mathit{scale} = \frac{\max\!\big(|\mathit{block}|\big)}{\mathit{half\_point} - 1}$ \\
+\end{center}
+Gdzie $\mathit{block}$ to zbiór wag w danym bloku, a $\mathit{bits}$ to liczba bitów, na które chcemy skompresować wagi (kod obsługuje opcje 4 i 8 bit). \\
+Mając skalę, każda waga bloku jest dzielona przez nią i zaokrąglana do najbliższej liczby całkowitej. Następnie jest "ściskana" do zakresu wartości dyktowanego przez liczbę bitów, czyli $[-\mathit{half\_point} - 1, \; \mathit{half\_point} - 1]$. \\
+Na koniec, aby nie poświęcać jednego bitu na dodatkowe informacje, $\mathit{half\_point}$ jest dodawane do każdej wagi, przesuwając je do pozytywnego zakresu wartości. \\
+Takie wagi są następnie zapisywane do pliku w postaci binarnej wraz ze skalą. Zapis następuje w formacie: [skala (float32), wagi (uint8)]. Uint8 jest stosowany nawet w przypadku opcji 4-bit, a wtedy do na jedną liczbę uint8 składają się dwie wagi 4-bitowe złożone z sobą ($\mathit{w_1}\text{ << 4 || }\mathit{w_2}$). \\
+Do pliku binarnego nie trafiają żadne dodatkowe dane i nie są wstawiane żadne separatory między warstwami. Informacje o strukturze modelu, takie jak liczba warstw, ich rozmiary i rodzje, są zachowywane poprzez zapis obok pliku binarnego pliku json, korzystając z wbudowanych funkcji eksportu konfiguracji modelu tensorflow. Dodatkowe informacje, takie jak rozmiar bloku i liczba bitów, są zapisywane do osobnego pliku json. \\
 Na dysku te trzy pliki nie występują oddzielnie, a są zapisywane do jednego pliku z niestandardowym rozszerzeniem \textit{.uniq}, którego nazwa pochodzi od nazwy wybranej dla biblioteki, \textit{Uniquant}. Plik ten jest w rzeczywistości plikiem typu archiwum. Dzięki temu wszystkie wymagane dane są przechowywane w jednym miejscu, co ułatwia przechowywanie oraz dekwantyzację.
 
 Warto też wspomnieć, że w przypadku, gdy dana warstwa na ostatnim swoim wymiarze ma mniej wag niż określony rozmiar bloku, to jest zapisywana w pełnej postaci float32 bez kompresji. Zostało to dodane z dwóch powodów. Po pierwsze, ułatwia to dekompresję takich warstw. Po drugie, znacznie zmniejsza to wpływ na kompresji na jakość wynikowych wag po dekompresji.
 
 \subsection{Dekwantyzacja}
-Proces dekwantyzacji jest odwrotnością kwantyzacji, ale jest od niej o wiele złożony. Większa trudność wynika z faktu, że kwantyzacja tylko iteruje po kolejnych wagach, a granice warstw są nieprzekraczalne, podczas gdy w dekwantyzacji odczytywane wagi są zapisane w ciągłym wektorze i należy odpowiednio wyliczyć ich granice, odróżnić skale od wag i przypisać je w odpowiednim formacie do odpowiednich warstw modelu.
+Proces dekwantyzacji jest odwrotnością kwantyzacji, ale jest od niej o wiele złożony. Większa trudność wynika z faktu, że kwantyzacja tylko iteruje po kolejnych wagach, a granice warstw są nieprzekraczalne, podczas gdy w dekwantyzacji odczytywane wagi są zapisane w ciągłym wektorze i należy odpowiednio wyliczyć ich granice, odróżnić skale od wag i przypisać je w odpowiednim formacie do odpowiednich warstw modelu. \\
 Skrótowa, punktowa prezentacja procesu dekwantyzacji:
 \begin{itemize}
     \item Odczytywane są informacje kwantyzacji z jednego pliku json, a informacje o strukturze modelu z drugiego,
@@ -36,10 +39,294 @@ Skrótowa, punktowa prezentacja procesu dekwantyzacji:
     \item Takie zdekwantyzowane wagi są przypisywane do odpowiedniej warstwy modelu.
 \end{itemize}
 
-Dekwantyzacja zaczyna się od odczytania informacji o kwantyzacji (rozmiar bloku, liczba bitów) z jednego pliku json z paczki \textit{.uniq} oraz informacji o strukturze modelu z drugiego pliku json. Te drugie wczytywane są funkcjami tensorflow, które odtwarzają z nich model z pustymi wagami. Następnie wczytywany jest plik binarny z wagami i skalami do zmiennej, która będzie przechowywać te wagi przez cały proces dekwantyzacji.
-Po tym rozpoczyna się pętla po warstwach modelu w postaci iteracji po obiektach struktury modelu. Po stronie dekwantyzacji ścieżki kodu nie są podzielone na podstawie liczby wymiarów warstw, a na podstawie nazw typów warstw. Obsługiwane są warstwy Dense, Conv1D, Conv2D, GRU i LayerNormalization. Na początku kodu dla każdej warstwy jest wyliczany zakres jej danych w wektorze wag na podstawie rozmiarów warstwy oraz wskaźnika aktualnej pozycji w wektorze wag, który jest aktualizowany po każdej warstwie.
-$\mathit{w}[\mathit{ptr} : \mathit{ptr} + \mathit{layer\_size}]$
-Gdzie $\mathit{w}$ to wektor wag, $\mathit{ptr}$ to wskaźnik aktualnej pozycji, a $\mathit{layer\_size}$ to liczba bitów danych warstwy (współczynniki skali i wagi). Ta ostatnia zmienna rozmiaru jest wyliczana poprzez pomnożenie razy 4 (lub 8, w zależności od parametru bitów kwantyzacji) liczby wszystkich wag warstwy oraz dodanie do tego pomnożonej przez 32 (liczba bitów reprezentacji skali) liczby bloków warstwy.
-Ponieważ warstwy tensorflow składają się w rzeczywistości z 2 lub więcej macierzy wag, należy brać to pod uwage w trakcie wyliczania zakresu danych warstwy oraz podczas faktycznej dekwantyzacji wag. Liczba macierzy określa liczbę głównych pętli, które będę musiały po sobie następować w obrębie kodu danego typu warstwy, a ilość wymiarów każdej z macierzy oznacza ilość zagnieżdżonych pętli w głównej pętli danej macierzy.
-W faktycznej części dekwantyzacji wag, wewnątrz ciała wspomnianych pętli, korzystając z drugiego, wewnętrznego wskaźnika pozycji, wydzielany jest każdy blok wag wraz z jego współczynnikiem skali. W przypadku kwantyzacji 4-bitowej występuje krok wydobycia obu liczb 4-bitowych z odczytanej liczby 8-bitowej. Następnie wszystkie wagi bloku są mnożone przez skalę i cofane jest ich przesunięcie z kroku kwantyzacji. Z takich zdekwantyzowanych wag jest tworzona macierz o odpowiednich wymiarach, która jest przypisywana do odpowiedniej macierzy warstwy modelu.
+Dekwantyzacja zaczyna się od odczytania informacji o kwantyzacji (rozmiar bloku, liczba bitów) z jednego pliku json z paczki \textit{.uniq} oraz informacji o strukturze modelu z drugiego pliku json. Te drugie wczytywane są funkcjami tensorflow, które odtwarzają z nich model z pustymi wagami. Następnie wczytywany jest plik binarny z wagami i skalami do zmiennej, która będzie przechowywać te wagi przez cały proces dekwantyzacji. \\
+Po tym rozpoczyna się pętla po warstwach modelu w postaci iteracji po obiektach struktury modelu. Po stronie dekwantyzacji ścieżki kodu nie są podzielone na podstawie liczby wymiarów warstw, a na podstawie nazw typów warstw. Obsługiwane są warstwy Dense, Conv1D, Conv2D, GRU i LayerNormalization. Na początku kodu dla każdej warstwy jest wyliczany zakres jej danych w wektorze wag na podstawie rozmiarów warstwy oraz wskaźnika aktualnej pozycji w wektorze wag, który jest aktualizowany po każdej warstwie. \\
+\vspace{-1.5em}
+\begin{center}
+$\mathit{w}[\mathit{ptr} : \mathit{ptr} + \mathit{layer\_size}]$ \\
+\end{center}
+Gdzie $\mathit{w}$ to wektor wag, $\mathit{ptr}$ to wskaźnik aktualnej pozycji, a $\mathit{layer\_size}$ to liczba bitów danych warstwy (współczynniki skali i wagi). Ta ostatnia zmienna rozmiaru jest wyliczana poprzez pomnożenie razy 4 (lub 8, w zależności od parametru bitów kwantyzacji) liczby wszystkich wag warstwy oraz dodanie do tego pomnożonej przez 32 (liczba bitów reprezentacji skali) liczby bloków warstwy. \\
+Ponieważ warstwy tensorflow składają się w rzeczywistości z 2 lub więcej macierzy wag, należy brać to pod uwage w trakcie wyliczania zakresu danych warstwy oraz podczas faktycznej dekwantyzacji wag. Liczba macierzy określa liczbę głównych pętli, które będę musiały po sobie następować w obrębie kodu danego typu warstwy, a ilość wymiarów każdej z macierzy oznacza ilość zagnieżdżonych pętli w głównej pętli danej macierzy. \\
+W faktycznej części dekwantyzacji wag, wewnątrz ciała wspomnianych pętli, korzystając z drugiego, wewnętrznego wskaźnika pozycji, wydzielany jest każdy blok wag wraz z jego współczynnikiem skali. W przypadku kwantyzacji 4-bitowej występuje krok wydobycia obu liczb 4-bitowych z odczytanej liczby 8-bitowej. Następnie wszystkie wagi bloku są mnożone przez skalę i cofane jest ich przesunięcie z kroku kwantyzacji. Z takich zdekwantyzowanych wag jest tworzona macierz o odpowiednich wymiarach, która jest przypisywana do odpowiedniej macierzy warstwy modelu. \\
 Po zakończeniu dekwantyzacji, funkcja zwraca gotowy model z przypisanymi wagami, który jest gotowy do użycia.
+
+\section{Wykorzystanie możliwości CUDA}
+W trakcie implementacji biblioteki stwierdziłem, że czasy kwantyzacji oraz dekwantyzacji da się przyspieszyć wykorzystując możliwości obliczeń równoległych na kartach graficznych z rdzeniami CUDA i tworząc tak zwane kernele CUDA. \\
+Z tego powodu wydzieliłem kod na dwa pliki "uniquant.py" i "uniquant\_legacy.py". Ten pierwszy zawiera implementację z wykorzystaniem CUDA, a drugi oryginalną implementację bez tego wsparcia. W ten sposób można łatwo porównać oba podejścia i ocenić wpływ wykorzystania CUDA na czasy kwantyzacji i dekwantyzacji. \\
+Implementacja CUDA nadal zawiera ten sam kod podstawowy, ale podobieństwa kończą się na etapie wydzielenia wag warstwy. W kodzie CUDA trafiają one do tablicy numpy, która jest kopiowana do pamięci GPU. Następnie z obecnymi danymi wywoływana jest odpowiednia dla warstwy funkcja w osobnym pliku z kodem w języku C++, korzystającym z narzędzi CUDA. \\
+Taki kod wykonuje równolegle obliczenia, dzieląc wykonania pętli pomiędzy dostępne rdzenie CUDA, co znacząco przyspiesza cały proces kwantyzacji i dekwantyzacji. Po zakończeniu obliczeń, wyniki są kopiowane z powrotem na CPU do pamięci RAM, skąd są zapisywane do pliku lub przypisywane do warstwy modelu, w zależności od tego, czy jest to kwantyzacja, czy dekwantyzacja.
+\begin{table}[htbp]
+	\centering
+    \caption{Tabela porównania czasów}
+	\begin{tabular}{|c|c|c|}
+		\hline
+		Wersja & Średni czas kwantyzacji & Średni czas dekwantyzacji \\
+		\hline
+		Oryginał & 50 s & 260 s \\
+		\hline
+		CUDA & $\sim$ 0 s & 5 s \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\section{Biblioteki i narzędzia}
+Do implementacji biblioteki \textit{Uniquant} wykorzystałem następujące narzędzia i biblioteki:
+\begin{itemize}
+    \item Python 3.13.11
+    \item Biblioteki Python:
+    \begin{itemize}
+        \item TensorFlow
+        \item PyTorch - do wczytywania kerneli cuda oraz zamiany macierzy na tensory cuda
+        \item NumPy
+        \item Tqdm - do wyświetlania pasków postępu podczas procesów kwantyzacji i dekwantyzacji
+        \item Pathlib
+        \item Zipfile - do obsługi archiwów \textit{.uniq}
+        \item Ctypes - do zapisu uint8 w wersji legacy
+        \item Struct - do zapisu float32 w wersji legacy
+        \item Json
+    \end{itemize}
+    \item CUDA Toolkit 12.8
+\end{itemize}
+Kod C++ kompilowany był w testach w zgodności ze standardem C++17, a do jego kompilacji wykorzystywałem narzędzie NVCC, które jest częścią CUDA Toolkit. \\
+Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytorium GitHub.
+
+\section{Testy wpływu kwantyzacji}
+W celu przetestowania wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji, przeprowadziłem testy na różnych modelach i konfiguracjach. \\
+Testy te polegały na porównaniu wyników modeli po dekwantyzacji z wynikami oryginalnych modeli. Wyniki zostały zebrane z wykonanych 24 kolejnych testów dla każdego przypadku, uśrednione z wyłączeniem 4 granicznych (2 maksymalnych i 2 minimalnych) wyników w każdym przypadku i zaokrąglone do przedstawianych liczb po przecinku.\\
+Pliki testów znajdują się w repozytorium GitHub.
+\subsection{Zbiory danych}
+Do testów na regresji i klasyfikacji prostej wykorzystałem zbiór danych o ubezpieczeniach medycznych "Medical Insurance Cost Prediction" z platformy Kaggle. \\
+Zbiór ten zawiera dane o pacjentach, ich warunkach, stylu życia, chorobach, wizytach u lekarza, ubezpieczeniach oraz kosztach leczenia. \\
+Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/mohankrishnathalla/medical-insurance-cost-prediction} \\
+Udostępniony został na licencji \textit{C00: Pulic Domain}, co oznacza, że jest darmowy do użytokowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
+
+\subsection{Testy na regresji}
+Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strzukturze przedstawionej w tabeli 3.2, "Struktura modelu regresji". \\
+\begin{table}[htbp]
+    \centering
+    \caption{Struktura modelu regresji}
+    \begin{tabular}{|c|c|c|}
+        \hline
+        Typ warstwy & Wymiary wyjściowe & L. parametrów \\
+        \hline
+        Dense & [None, 8192] & 688 128 \\
+        \hline
+        LayerNormalization & [None, 8192] & 16 384 \\
+        \hline
+        Dense & [None, 4096] & 33 558 528 \\
+        \hline
+        LayerNormalization & [None, 4096] & 8 192 \\
+        \hline
+        Dense & [None, 4096] & 16 781 312 \\
+        \hline
+        LayerNormalization & [None, 4096] & 8 192 \\
+        \hline
+        Dense & [None, 2048] & 8 390 656 \\
+        \hline
+        LayerNormalization & [None, 2048] & 4 096 \\
+        \hline
+        Dense & [None, 1024] & 2 098 176 \\
+        \hline
+        LayerNormalization & [None, 1024] & 2 048 \\
+        \hline
+        Dense & [None, 512] & 524 800 \\
+        \hline
+        LayerNormalization & [None, 512] & 1 024 \\
+        \hline
+        Dense & [None, 256] & 131 328 \\
+        \hline
+        LayerNormalization & [None, 256] & 512 \\
+        \hline
+        Dense & [None, 128] & 32 896 \\
+        \hline
+        LayerNormalization & [None, 128] & 256 \\
+        \hline
+        Dense & [None, 64] & 8 256 \\
+        \hline
+        LayerNormalization & [None, 64] & 128 \\
+        \hline
+        Dense & [None, 32] & 2 080 \\
+        \hline
+        LayerNormalization & [None, 32] & 64 \\
+        \hline
+        Dense & [None, 16] & 528 \\
+        \hline
+        LayerNormalization & [None, 16] & 32 \\
+        \hline
+        Dense & [None, 1] & 17 \\
+        \hline
+    \end{tabular}
+\end{table}
+Wszystkie warstwy Dense korzystają z aktywacji "GeLU". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty średniego błędu kwadratowego (MSE) oraz metryki średniego błędu bezwzględnego (MAE). \\
+Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
+Parametrem przewidywanym w testach była kolumna "risk\_score", która jest oceną ryzyka pacjenta na podstawie jego danych. \\
+Poza MAE i MSE, testy korzystały też z metryki pierwiastka średniego błędu kwadratowego (RMSE) i sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Wyniki testów zostały przedstawione w tabelach 3.3 i 3.4.
+\begin{table}
+    \centering
+    \caption{Tabela wyników 4-bit}
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        Wersja & MAE & MSE & RMSE & Rozmiar \\
+        \hline
+        Oryginał & 0,00985 & 0,00020 & 0,01424 & 713 MiB \\
+        \hline
+        Bloki 128 & 0,03003 & 0,00124 & 0,03523 & 32 MiB \\
+        \hline
+        Bloki 64 & 0,01663 & 0,00054 & 0,02326 & 34 MiB \\
+        \hline
+        Bloki 32 & 0,10860 & 0,01425 & 0,11939 & 38 MiB \\
+        \hline
+        Bloki 16 & 0,51003 & 0,26066 & 0,51055 & 45 MiB \\
+        \hline
+        Bloki 8 & 0,53176 & 0,28335 & 0,53230 & 60 MiB \\
+        \hline
+    \end{tabular}
+\end{table}
+\begin{table}
+    \centering
+    \caption{Tabela wyników 8-bit}
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        Wersja & MAE & MSE & RMSE & Rozmiar \\
+        \hline
+        Oryginał & 0,00985 & 0,00020 & 0,01424 & 713 MiB \\
+        \hline
+        Bloki 128 & 0,01570 & 0,00050 & 0,02236 & 62 MiB \\
+        \hline
+        Bloki 64 & 0,01574 & 0,00049 & 0,02009 & 64 MiB \\
+        \hline
+        Bloki 32 & 0,01574 & 0,00050 & 0,02243 & 67 MiB \\
+        \hline
+        Bloki 16 & 0,49182 & 0,24299 & 0,49294 & 75 MiB \\
+        \hline
+        Bloki 8 & 0,60438 & 0,44460 & 0,66679 & 90 MiB \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Jak widać na przedstawionych tabelach, wyniki poprawiają się wraz ze wzrostem rozmiaru bloków, a wariant 8-bitowy zazwyczaj osiąga lepsze wyniki niż wariant 4-bitowy. Spoglądając na wyniki i rozmiary plików, rozmiar 32 bloków w wariancie 8-bitowym oraz rozmiar 64 bloków w wariancie 4-bitowym wydają się być rozsądnymi wyborami.
+
+\subsection{Testy na klasyfikacji prostej}
+Do testów na klasyfikacji prostej wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 3.5, "Struktura modelu klasyfikacji prostej". \\
+\begin{table}[htbp]
+    \centering
+    \caption{Struktura modelu klasyfikacji prostej}
+    \begin{tabular}{|c|c|c|}
+        \hline
+        Typ warstwy & Wymiary wyjściowe & L. parametrów \\
+        \hline
+        Dense & [None, 8192] & 688 128 \\
+        \hline
+        LayerNormalization & [None, 8192] & 16 384 \\
+        \hline
+        Dense & [None, 4096] & 33 558 528 \\
+        \hline
+        LayerNormalization & [None, 4096] & 8 192 \\
+        \hline
+        Dense & [None, 4096] & 16 781 312 \\
+        \hline
+        LayerNormalization & [None, 4096] & 8 192 \\
+        \hline
+        Dense & [None, 2048] & 8 390 656 \\
+        \hline
+        LayerNormalization & [None, 2048] & 4 096 \\
+        \hline
+        Dense & [None, 1024] & 2 098 176 \\
+        \hline
+        LayerNormalization & [None, 1024] & 2 048 \\
+        \hline
+        Dense & [None, 512] & 524 800 \\
+        \hline
+        LayerNormalization & [None, 512] & 1 024 \\
+        \hline
+        Dense & [None, 256] & 131 328 \\
+        \hline
+        LayerNormalization & [None, 256] & 512 \\
+        \hline
+        Dense & [None, 128] & 32 896 \\
+        \hline
+        LayerNormalization & [None, 128] & 256 \\
+        \hline
+        Dense & [None, 64] & 8 256 \\
+        \hline
+        LayerNormalization & [None, 64] & 128 \\
+        \hline
+        Dense & [None, 32] & 2 080 \\
+        \hline
+        LayerNormalization & [None, 32] & 64 \\
+        \hline
+        Dense & [None, 16] & 528 \\
+        \hline
+        LayerNormalization & [None, 16] & 32 \\
+        \hline
+        Dense & [None, 1] & 17 \\
+        \hline
+    \end{tabular}
+\end{table}
+Wszystkie warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Sigmoid". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty binary crossentropy oraz metryki accuracy. \\
+Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
+Parametrem przewidywanym w testach była kolumna "is\_high\_risk", która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
+Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Wyniki testów zostały przedstawione w tabelach 3.6 i 3.7.
+\begin{table}
+    \centering
+    \caption{Tabela wyników 4-bit}
+    \begin{tabular}{|c|c|c|c|c|c|}
+        \hline
+        Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\
+        \hline
+        Oryginał & 0,9902 & 0,9982 & 0,9759 & 0,9864 & 713 MiB \\
+        \hline
+        Bloki 128 & 0,9866 & 0,9989 & 0,9643 & 0,9813 & 32 MiB \\
+        \hline
+        Bloki 64 & 0,9901 & 0,9980 & 0,9746 & 0,9862 & 34 MiB \\
+        \hline
+        Bloki 32 & 0,9887 & 0,9984 & 0,9703 & 0,9842 & 38 MiB \\
+        \hline
+        Bloki 16 & 0,3615 & 0,3623 & 0,9934 & 0,5310 & 45 MiB \\
+        \hline
+        Bloki 8 & 0,9922 & 0,9913 & 0,9872 & 0,9893 & 60 MiB \\
+        \hline
+    \end{tabular}
+\end{table}
+\begin{table}
+    \centering
+    \caption{Tabela wyników 8-bit}
+    \begin{tabular}{|c|c|c|c|c|c|}
+        \hline
+        Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\
+        \hline
+        Oryginał & 0,9902 & 0,9982 & 0,9759 & 0,9864 & 713 MiB \\
+        \hline
+        Bloki 128 & 0,9875 & 0,9989 & 0,9666 & 0,9825 & 62 MiB \\
+        \hline
+        Bloki 64 & 0,9882 & 0,9987 & 0,9688 & 0,9835 & 64 MiB \\
+        \hline
+        Bloki 32 & 0,9886 & 0,9986 & 0,9699 & 0,9840 & 67 MiB \\
+        \hline
+        Bloki 16 & 0,9923 & 0,9928 & 0,9858 & 0,9893 & 75 MiB \\
+        \hline
+        Bloki 8 & 0,9919 & 0,9951 & 0,9824 & 0,9887 & 90 MiB \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Wyniki pokazują bardzo dobrą jakość względem oryginału dla wszystkich konfiguracji, z wyjątkiem wariantu 4-bitowego z rozmiarem bloku 16, który z nieznanego powodu osiąga znacznie gorsze wyniki. \\
+
+\section{Biblioteki i narzędzia testów}
+Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji wykorzystałem następujące narzędzia i biblioteki:
+\begin{itemize}
+    \item Python 3.13.11
+    \item Biblioteki Python:
+    \begin{itemize}
+        \item TensorFlow - do tworzenia modeli i trenowania ich na zbiorze danych
+        \item NumPy
+        \item Scikit-learn - do obliczania metryk precision, recall i f1-score
+        \item Pandas - do wczytywania zbioru danych i przygotowywania
+        \item Tqdm - do wyświetlania pasków postępu podczas iteracji po testach
+        \item Kagglehub - do pobierania zbioru danych z platformy Kaggle
+        \item Json
+    \end{itemize}
+\end{itemize}
+Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytorium GitHub.

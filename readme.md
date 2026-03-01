@@ -15,7 +15,7 @@
   - Omówienie dodania CUDA
   - Omowienie dynamicznego skalowania
   - Fragmenty kodu
-  - Przedstawienie i analiza wyników
+  - Przedstawienie testów i analiza wyników
  4. Popularne rozwiązania
   - GGUF
   - AWQ

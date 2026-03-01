@@ -75,8 +75,8 @@ del(model)
 del(X_train)
 del(y_train)
 
-quant_t = [4]
-num_t = [32]
+quant_t = [4, 8]
+num_t = [8, 16, 32, 64, 128]
 progress = tqdm(total=len(quant_t)*len(num_t), desc="Tests", unit="test", miniters=1, mininterval=0)
 for quant_size in quant_t:
 	for num in num_t:
@@ -87,9 +87,9 @@ for quant_size in quant_t:
 		mse = mean_squared_error(y_test, y_pred)
 		rmse = np.sqrt(mse)
 		print(f"MAE: {mae}, MSE: {mse}, RMSE: {rmse}")
-		results.append({"mae": mae, "mse": mse, "rmse": rmse})
+		results.append({"quant_size": quant_size, "pack_size": num, "mae": mae, "mse": mse, "rmse": rmse})
 		del model
 		progress.update(1)
 
-	with open(f"test_results_32_literal.json", "w") as f:
-		json.dump(results, f, indent=4)
+with open(f"test_results.json", "w") as f:
+	json.dump(results, f, indent=4)

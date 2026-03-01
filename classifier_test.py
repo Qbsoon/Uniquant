@@ -76,8 +76,8 @@ del model
 del X_train
 del y_train
 
-quant_t = [4]
-num_t = [32]
+quant_t = [4, 8]
+num_t = [8, 16, 32, 64, 128]
 progress = tqdm(total=len(quant_t)*len(num_t), desc="Tests", unit="test", miniters=1, mininterval=0)
 for quant_size in quant_t:
 	for num in num_t:
@@ -90,9 +90,9 @@ for quant_size in quant_t:
 		recall = recall_score(y_test, y_pred)
 		f1 = f1_score(y_test, y_pred)
 		print(f"Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}, F1: {f1}")
-		results.append({"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1})
+		results.append({"quant_size": quant_size, "pack_size": num, "accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1})
 		del model
 		progress.update(1)
 	
-	with open(f"test_classifier_{quant_size}bit_results_32_literal.json", "w") as f:
-		json.dump(results, f, indent=4)
+with open(f"test_classifier.json", "w") as f:
+	json.dump(results, f, indent=4)
