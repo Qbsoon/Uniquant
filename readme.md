@@ -1,6 +1,6 @@
  - LSTM, RNN
- - Lasy losowe
  - Wstrzyknięcie dekompresji do wykonania TF
+ - Przeniesienie zmian Batchnorm i Conv1d do legacy
 
  1. Wstęp
   - Przedstawienie się

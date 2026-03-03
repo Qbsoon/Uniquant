@@ -95,10 +95,15 @@ W celu przetestowania wpływu kwantyzacji na jakość wynikowych wag po dekwanty
 Testy te polegały na porównaniu wyników modeli po dekwantyzacji z wynikami oryginalnych modeli. Wyniki zostały zebrane z wykonanych 24 kolejnych testów dla każdego przypadku, uśrednione z wyłączeniem 4 granicznych (2 maksymalnych i 2 minimalnych) wyników w każdym przypadku i zaokrąglone do przedstawianych liczb po przecinku.\\
 Pliki testów znajdują się w repozytorium GitHub.
 \subsection{Zbiory danych}
-Do testów na regresji i klasyfikacji prostej wykorzystałem zbiór danych o ubezpieczeniach medycznych "Medical Insurance Cost Prediction" z platformy Kaggle. \\
+Do testów na regresji i klasyfikacji binarnej wykorzystałem zbiór danych o ubezpieczeniach medycznych "Medical Insurance Cost Prediction" z platformy Kaggle. \\
 Zbiór ten zawiera dane o pacjentach, ich warunkach, stylu życia, chorobach, wizytach u lekarza, ubezpieczeniach oraz kosztach leczenia. \\
 Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/mohankrishnathalla/medical-insurance-cost-prediction} \\
 Udostępniony został na licencji \textit{C00: Pulic Domain}, co oznacza, że jest darmowy do użytokowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
+
+Do testów na klasyfikacji wieloklasowej audio wykorzystałem zbiór danych o wypowiadanych słowach "mini_speech_commands" z platformy Kaggle. \\
+Zbiór ten zawiera nagrania audio wypowiadanych słów z 8 kategorii: "down", "go", "left", "no", "right", "stop", "up" i "yes". \\
+Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/antfilatov/mini-speech-commands} \\
+Udostępniony został na licencji \texit{CC BY 4.0}, co oznacza, że jest darmowy do użytokowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
 
 \subsection{Testy na regresji}
 Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strzukturze przedstawionej w tabeli 3.2, "Struktura modelu regresji". \\
@@ -207,11 +212,11 @@ Wyniki testów zostały przedstawione w tabelach 3.3 i 3.4.
 
 Jak widać na przedstawionych tabelach, wyniki poprawiają się wraz ze wzrostem rozmiaru bloków, a wariant 8-bitowy zazwyczaj osiąga lepsze wyniki niż wariant 4-bitowy. Spoglądając na wyniki i rozmiary plików, rozmiar 32 bloków w wariancie 8-bitowym oraz rozmiar 64 bloków w wariancie 4-bitowym wydają się być rozsądnymi wyborami.
 
-\subsection{Testy na klasyfikacji prostej}
-Do testów na klasyfikacji prostej wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 3.5, "Struktura modelu klasyfikacji prostej". \\
+\subsection{Testy na klasyfikacji binarnej}
+Do testów na klasyfikacji binarnej wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 3.5, "Struktura modelu klasyfikacji binarnej". \\
 \begin{table}[htbp]
     \centering
-    \caption{Struktura modelu klasyfikacji prostej}
+    \caption{Struktura modelu klasyfikacji binarnej}
     \begin{tabular}{|c|c|c|}
         \hline
         Typ warstwy & Wymiary wyjściowe & L. parametrów \\
@@ -314,6 +319,113 @@ Wyniki testów zostały przedstawione w tabelach 3.6 i 3.7.
 
 Wyniki pokazują bardzo dobrą jakość względem oryginału dla wszystkich konfiguracji, z wyjątkiem wariantu 4-bitowego z rozmiarem bloku 16, który z nieznanego powodu osiąga znacznie gorsze wyniki. \\
 
+\subsection{Testy na klasyfikacji wieloklasowej audio}
+Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 3.8, "Struktura modelu klasyfikacji wieloklasowej audio". \\
+\begin{table}[htbp]
+    \centering
+    \caption{Struktura modelu klasyfikacji wieloklasowej audio}
+    \begin{tabular}{|c|c|c|}
+        \hline
+        Typ warstwy & Wymiary wyjściowe & L. parametrów \\
+        \hline
+        Conv1D & [None, 125, 512] & 462 848 \\
+        \hline
+        BatchNormalization & [None, 125, 512] & 2 048 \\
+        \hline
+        Activation & [None, 125, 512] & 0 \\
+        \hline
+        MaxPooling1D & [None, 62, 512] & 0 \\
+        \hline
+        Conv1D & [None, 62, 1024] & 2 622 464 \\
+        \hline
+        BatchNormalization & [None, 62, 1024] & 4 096 \\
+        \hline
+        Activation & [None, 62, 1024] & 0 \\
+        \hline
+        MaxPooling1D & [None, 31, 1024] & 0 \\
+        \hline
+        Conv1D & [None, 31, 2048] & 6 293 504 \\
+        \hline
+        BatchNormalization & [None, 31, 2048] & 8 192 \\
+        \hline
+        Activation & [None, 31, 2048] & 0 \\
+        \hline
+        MaxPooling1D & [None, 15, 2048] & 0 \\
+        \hline
+        Conv1D & [None, 15, 4096] & 25 169 920 \\
+        \hline
+        BatchNormalization & [None, 15, 4096] & 16 384 \\
+        \hline
+        Activation & [None, 15, 4096] & 0 \\
+        \hline
+        GlobalAveragePooling1D & [None, 4096] & 0 \\
+        \hline
+        Dense & [None, 4096] & 16 781 312 \\
+        \hline
+        LayerNormalization & [None, 4096] & 8 192 \\
+        \hline
+        Dense & [None, 2048] & 8 390 656 \\
+        \hline
+        LayerNormalization & [None, 2048] & 4 096 \\
+        \hline
+        Dense & [None, 1024] & 2 098 176 \\
+        \hline
+        LayerNormalization & [None, 1024] & 2 048 \\
+        \hline
+        Dense & [None, 8] & 8 200 \\
+        \hline
+    \end{tabular}
+\end{table}
+Warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Softmax". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty sparse categorical crossentropy oraz metryki accuracy. \\
+Model ten został wytrenowany na zbiorze danych słów audio przez 10 epok z wykorzystaniem 10\% danych jako zbioru testowego i 10\% jako zbioru walidacyjnego. \\
+Parametrem przewidywanym w testach było wypowiadane słowo z dostępnych w zbiorze słów. \\
+Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Wyniki testów zostały przedstawione w tabelach 3.9 i 3.10.
+\begin{table}
+    \centering
+    \caption{Tabela wyników 4-bit}
+    \begin{tabular}{|c|c|c|c|c|c|}
+        \hline
+        Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\
+        \hline
+        Oryginał & 0,8867 & 0,8902 & 0,8895 & 0,8863 & 709 MiB \\
+        \hline
+        Bloki 128 & 0,4232 & 0,4919 & 0,4264 & 0,3235 & 32 MiB \\
+        \hline
+        Bloki 64 & 0,3802 & 0,5598 & 0,3819 & 0,2918 & 34 MiB \\
+        \hline
+        Bloki 32 & 0,3281 & 0,2413 & 0,3313 & 0,2294 & 37 MiB \\
+        \hline
+        Bloki 16 & 0,1810 & 0,1136 & 0,1744 & 0,0940 & 45 MiB \\
+        \hline
+        Bloki 8 & 0,1667 & 0,0477 & 0,1549 & 0,0609 & 60 MiB \\
+        \hline
+    \end{tabular}
+\end{table}
+\begin{table}
+    \centering
+    \caption{Tabela wyników 8-bit}
+    \begin{tabular}{|c|c|c|c|c|c|}
+        \hline
+        Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\
+        \hline
+        Oryginał & 0,8867 & 0,8902 & 0,8895 & 0,8863 & 709 MiB \\
+        \hline
+        Bloki 128 & 0,7617 & 0,8281 & 0,7632 & 0,7643 & 61 MiB \\
+        \hline
+        Bloki 64 & 0,8333 & 0,8555 & 0,8313 & 0,8278 & 63 MiB \\
+        \hline
+        Bloki 32 & 0,8477 & 0,8662 & 0,8463 & 0,8443 & 67 MiB \\
+        \hline
+        Bloki 16 & 0,8268 & 0,8523 & 0,8253 & 0,8218 & 74 MiB \\
+        \hline
+        Bloki 8 & 0,8607 & 0,8734 & 0,8601 & 0,8591 & 89 MiB \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Wyniki pokazują, że wariant 4-bitowy nie radzi sobie dobrze z kwantyzacją tego modelu, osiągając wyniki poniżej 50\% w większości metryk dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie znacznie lepiej, osiągając wyniki bliskie oryginału dla prawie wszystkich rozmiarów bloków, z wyjątkiem lekkiego spadku na rozmiarze bloku 64. \\
+
 \section{Biblioteki i narzędzia testów}
 Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji wykorzystałem następujące narzędzia i biblioteki:
 \begin{itemize}
@@ -330,3 +442,9 @@ Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwa
     \end{itemize}
 \end{itemize}
 Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytorium GitHub.
+
+Wszelkie wyniki z tej sekcji zostały przeprowadzone na sprzęcie: \\
+CPU: AMD Ryzen 5 7600X \\
+GPU: NVIDIA GeForce RTX 4070 Ti Super 16GB\\
+RAM: 64 GB DDR5 \\
+Korzystając z systemu Fedora 42 KDE.

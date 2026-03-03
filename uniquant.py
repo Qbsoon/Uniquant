@@ -177,9 +177,10 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 	"std::vector<torch::Tensor> dequantize_conv1d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
 	"std::vector<torch::Tensor> dequantize_conv2d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t d4, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
 	"std::vector<torch::Tensor> dequantize_gru_hex(torch::Tensor hex_cpu, int64_t d1, int64_t units, int64_t biases, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-	"std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);"
+	"std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+	"std::vector<torch::Tensor> dequantize_batchnorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);"
 	module = load_cuda(cuda_src, cpp_src,
-					['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_gru_hex', 'dequantize_layernorm_hex'],
+					['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_gru_hex', 'dequantize_layernorm_hex', 'dequantize_batchnorm_hex'],
 					verbose=True)
 
 	### Dequantizing ###
@@ -222,8 +223,13 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 				weights[layer['config']['name']] = [w, w3]
 
 		if layer['class_name'] == 'Conv1D':
-			d1 = layer['build_config']['input_shape'][1]
-			d2 = layer['build_config']['input_shape'][2]
+			d1 = layer['config']['kernel_size'][0]
+			format = layer['config'].get('data_format', 'channels_last')
+			if format == 'channels_last':
+				d2 = int(layer['build_config']['input_shape'][2])
+			else:
+				d2 = int(layer['build_config']['input_shape'][1])
+			d2 = layer['build_config']['input_shape'][-1]
 			d3 = layer['config']['filters']
 			if d3 >= pack_size:
 				layer_data = bin_data[ptr:ptr+((((((d1*d2)+1)*d3)//pack_size)*8) if d3>=pack_size else 0)+(8*((d1*d2)+1) if d3%pack_size != 0 else 0)+((((d1*d2)+1)*(d3+(d3%2)))*hpn)]
@@ -335,6 +341,38 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 					w2 = np.append(w2, n0)
 				
 				weights[layer['config']['name']] = [w, w2]
+
+		if layer['class_name'] == 'BatchNormalization':
+			d1 = layer['build_config']['input_shape'][-1]
+			if (d1 >= pack_size):
+				layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2))*hpn))*4]
+				out_tensors = module.dequantize_batchnorm_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, pack_size, quant_size, balanced, literal)
+
+				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1], out_tensors[2], out_tensors[3]]
+			else:
+				layer_data = bin_data[ptr:ptr+((d1*8)*4)]
+				w = np.array([])
+				for i in range(d1):
+					n0_hex = layer_data[(i*8):(i*8)+8]
+					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+					w = np.append(w, n0)
+				w2 = np.array([])
+				for i in range(d1):
+					n0_hex = layer_data[(d1*8)+(i*8):(d1*8)+(i*8)+8]
+					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+					w2 = np.append(w2, n0)
+				w3 = np.array([])
+				for i in range(d1):
+					n0_hex = layer_data[(d1*16)+(i*8):(d1*16)+(i*8)+8]
+					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+					w3 = np.append(w3, n0)
+				w4 = np.array([])
+				for i in range(d1):
+					n0_hex = layer_data[(d1*24)+(i*8):(d1*24)+(i*8)+8]
+					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+					w4 = np.append(w4, n0)
+				
+				weights[layer['config']['name']] = [w, w2, w3, w4]
 
 		ptr += len(layer_data)
 

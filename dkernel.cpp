@@ -93,7 +93,13 @@ __global__ void dequant_hex_kernel(
 	int is_bias = 0;
 	int64_t pos = idx;
 
-	if (mode == 4) {
+	int seg = 0;
+	if (mode == 5) {
+		seg = (int)(idx / d1);
+		pos = idx - (int64_t)seg * d1;
+		is_second = 0;
+		is_bias = 0;
+	} else if (mode == 4) {
 		is_bias = 0;
 	} else if (mode == 3) {
 		if (pos >= elems_weights) {
@@ -143,7 +149,9 @@ __global__ void dequant_hex_kernel(
 	int64_t row_hex = batches * rec_full + (rem ? rec_rem : 0);
 	int64_t base_hex = 0;
 
-	if (mode == 3) {
+	if (mode == 5) {
+		base_hex = (int64_t)seg * row_hex;
+	} else if (mode == 3) {
 		base_hex = is_second ? (row_hex) : 0;
 	} else {
 		base_hex = row * row_hex;
@@ -166,25 +174,25 @@ __global__ void dequant_hex_kernel(
 			int n = q - (balanced ? half_point : 0);
 			float v = literal ? (float)n : ((float)n * scale);
 			out_a[idx] = v;
-			if (mode == 3 || is_bias) out_b[pos] = v;
+			if ((mode == 3 || is_bias) && mode != 5) out_b[pos] = v;
 		} else {
 			int64_t byte_i = within >> 1;
 			uint8_t b = hex_byte(hex + payload_hex_off + byte_i * 2);
 			int q = (within & 1) ? (int)(b & 0x0F) : (int)((b >> 4) & 0x0F);
 			if ((within & 1) && q == 0) {
 				out_a[idx] = 0.0f;
-				if (mode == 3 || is_bias) out_b[pos] = 0.0f;
+				if ((mode == 3 || is_bias) && mode != 5) out_b[pos] = 0.0f;
 			} else {
 				int n = q - (balanced ? half_point : 0);
 				float v = literal ? (float)n : ((float)n * scale);
 				out_a[idx] = v;
-				if (mode == 3 || is_bias) out_b[pos] = v;
+				if ((mode == 3 || is_bias) && mode != 5) out_b[pos] = v;
 			}
 		}
 	} else {
 		if (!rem) {
 			out_a[idx] = 0.0f;
-			if (mode == 3 || is_bias) out_b[pos] = 0.0f;
+			if ((mode == 3 || is_bias) && mode != 5) out_b[pos] = 0.0f;
 			return;
 		}
 		int64_t rblk = blk - batches;
@@ -197,19 +205,19 @@ __global__ void dequant_hex_kernel(
 			int n = q - (balanced ? half_point : 0);
 			float v = literal ? (float)n : ((float)n * scale);
 			out_a[idx] = v;
-			if (mode == 3 || is_bias) out_b[pos] = v;
+			if ((mode == 3 || is_bias) && mode != 5) out_b[pos] = v;
 		} else {
 			int64_t byte_i = within >> 1;
 			uint8_t b = hex_byte(hex + payload_hex_off + byte_i * 2);
 			int q = (within & 1) ? (int)(b & 0x0F) : (int)((b >> 4) & 0x0F);
 			if ((within & 1) && q == 0) {
 				out_a[idx] = 0.0f;
-				if (mode == 3 || is_bias) out_b[pos] = 0.0f;
+				if ((mode == 3 || is_bias) && mode != 5) out_b[pos] = 0.0f;
 			} else {
 				int n = q - (balanced ? half_point : 0);
 				float v = literal ? (float)n : ((float)n * scale);
 				out_a[idx] = v;
-				if (mode == 3 || is_bias) out_b[pos] = v;
+				if ((mode == 3 || is_bias) && mode != 5) out_b[pos] = v;
 			}
 		}
 	}
@@ -242,6 +250,9 @@ static std::vector<torch::Tensor> dequantize_hex_impl(
 	} else if (mode == 4) {
 		TORCH_CHECK(d2 >= pack_size, "d2 must be >= pack_size");
 		total = d1 * d2;
+	} else if (mode == 5) {
+		TORCH_CHECK(d1 >= pack_size, "d1 must be >= pack_size");
+		total = 4 * d1;
 	} else {
 		TORCH_CHECK(d1 >= pack_size, "d1 must be >= pack_size");
 		total = d1 + d1;
@@ -293,6 +304,14 @@ static std::vector<torch::Tensor> dequantize_hex_impl(
 	if (mode == 4) {
 		return { out_a_gpu.to(torch::kCPU) };
 	}
+	if (mode == 5) {
+		auto flat = out_a_gpu.to(torch::kCPU);
+		auto w = flat.narrow(0, 0 * d1, d1).contiguous();
+		auto b = flat.narrow(0, 1 * d1, d1).contiguous();
+		auto rm = flat.narrow(0, 2 * d1, d1).contiguous();
+		auto rv = flat.narrow(0, 3 * d1, d1).contiguous();
+		return { w, b, rm, rv };
+	}
 	auto a = out_a_gpu.narrow(0, 0, d1).to(torch::kCPU);
 	auto b = out_b_gpu.to(torch::kCPU);
 	return { a, b };
@@ -330,4 +349,8 @@ std::vector<torch::Tensor> dequantize_gru_hex(torch::Tensor hex_cpu, int64_t d1,
 
 std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal) {
 	return dequantize_hex_impl(3, hex_cpu, d1, 0, 0, 0, pack_size, quant_size, balanced, literal);
+}
+
+std::vector<torch::Tensor> dequantize_batchnorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal) {
+	return dequantize_hex_impl(5, hex_cpu, d1, 0, 0, 0, pack_size, quant_size, balanced, literal);
 }
