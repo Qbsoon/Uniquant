@@ -169,7 +169,7 @@ Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliot
 \end{table}
 Wszystkie warstwy Dense korzystają z aktywacji "GeLU". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty średniego błędu kwadratowego (MSE) oraz metryki średniego błędu bezwzględnego (MAE). \\
 Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
-Parametrem przewidywanym w testach była kolumna "risk\_score", która jest oceną ryzyka pacjenta na podstawie jego danych. \\
+Parametrem przewidywanym w testach była kolumna "risk\_score", która jest oceną ryzyka pacjenta na podstawie jego danych. Jego wartości pochodzą z zakresu [0, 1], ze średnią wartością równą 0,519849 i odchyleniem standardowym 0,250669.\\
 Poza MAE i MSE, testy korzystały też z metryki pierwiastka średniego błędu kwadratowego (RMSE) i sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
 Wyniki testów zostały przedstawione w tabelach 3.3 i 3.4.
 \begin{table}

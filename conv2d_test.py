@@ -57,7 +57,7 @@ def _to_onehot_sm(x, y):
 train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(min(len(X_train), 4096), seed=86, reshuffle_each_iteration=True).map(_load_img, num_parallel_calls=tf.data.AUTOTUNE).map(_aug_img, num_parallel_calls=tf.data.AUTOTUNE).map(_to_onehot_sm, num_parallel_calls=tf.data.AUTOTUNE).batch(16).prefetch(tf.data.AUTOTUNE)
 val_ds = tf.data.Dataset.from_tensor_slices((X_val, y_val)).map(_load_img, num_parallel_calls=tf.data.AUTOTUNE).map(_to_onehot, num_parallel_calls=tf.data.AUTOTUNE).batch(16).prefetch(tf.data.AUTOTUNE)
 test_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).map(_load_img, num_parallel_calls=tf.data.AUTOTUNE).map(_to_onehot, num_parallel_calls=tf.data.AUTOTUNE).batch(16).prefetch(tf.data.AUTOTUNE)
-'''
+
 model = keras.Sequential()
 model.add(keras.layers.InputLayer(shape=(IMG_H, IMG_W, 3)))
 model.add(keras.layers.Conv2D(64, 3, padding='same')); model.add(keras.layers.BatchNormalization()); model.add(keras.layers.Activation('gelu'))
@@ -73,7 +73,6 @@ model.add(keras.layers.Conv2D(512, 3, padding='same')); model.add(keras.layers.B
 model.add(keras.layers.Conv2D(512, 3, padding='same')); model.add(keras.layers.BatchNormalization()); model.add(keras.layers.Activation('gelu'))
 model.add(keras.layers.MaxPooling2D(2))
 model.add(keras.layers.GlobalAveragePooling2D())
-#model.add(keras.layers.Dense(16384, activation='gelu')); model.add(keras.layers.Dropout(0.40))
 model.add(keras.layers.Dense(8192, activation='gelu')); model.add(keras.layers.Dropout(0.40))
 model.add(keras.layers.Dense(4096, activation='gelu')); model.add(keras.layers.Dropout(0.30))
 model.add(keras.layers.Dense(2048, activation='gelu')); model.add(keras.layers.Dropout(0.20))
@@ -96,9 +95,9 @@ model.save("model.keras", overwrite=True)
 del model
 del X_train
 del y_train
-'''
 
-results.append({"accuracy": 0.7321867321867321, "precision": 0.7562410904327956, "recall": 0.7101213223410621, "f1": 0.7139587267877459})
+
+#results.append({"accuracy": 0.7321867321867321, "precision": 0.7562410904327956, "recall": 0.7101213223410621, "f1": 0.7139587267877459})
 
 quant_t = [4, 8]
 num_t = [8, 16, 32, 64, 128]
