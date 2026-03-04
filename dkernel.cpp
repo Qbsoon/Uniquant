@@ -62,30 +62,31 @@ __global__ void dequant_hex_kernel(
 	if (mode == 0 || mode == 4) {
 		batches = d2 / pack_size;
 		rem = d2 % pack_size;
-		rem_shift = (int64_t)(rem * (quant_size / 4.0f));
+		rem_shift = (quant_size == 4) ? (int64_t)((rem + (rem & 1)) * (quant_size / 4)) : (int64_t)(rem * (quant_size / 4));
 		rec_rem = rem ? (8 + rem_shift) : 0;
 		rows = d1;
 		elems_weights = d1 * d2;
 	} else if (mode == 1) {
 		batches = d3 / pack_size;
 		rem = d3 % pack_size;
-		rem_shift = (int64_t)(rem * (quant_size / 4.0f));
+		rem_shift = (quant_size == 4) ? (int64_t)((rem + (rem & 1)) * (quant_size / 4)) : (int64_t)(rem * (quant_size / 4));
 		rec_rem = rem ? (8 + rem_shift) : 0;
 		rows = d1 * d2;
 		elems_weights = d1 * d2 * d3;
 	} else if (mode == 2) {
 		batches = d4 / pack_size;
 		rem = d4 % pack_size;
-		rem_shift = (int64_t)(rem * (quant_size / 4.0f));
+		rem_shift = (quant_size == 4) ? (int64_t)((rem + (rem & 1)) * (quant_size / 4)) : (int64_t)(rem * (quant_size / 4));
 		rec_rem = rem ? (8 + rem_shift) : 0;
 		rows = d1 * d2 * d3;
 		elems_weights = d1 * d2 * d3 * d4;
 	} else {
 		batches = d1 / pack_size;
 		rem = d1 % pack_size;
-		rem_shift = (int64_t)(rem * (quant_size / 4.0f));
+		rem_shift = (quant_size == 4) ? (int64_t)((rem + (rem & 1)) * (quant_size / 4)) : (int64_t)(rem * (quant_size / 4));
 		rec_rem = rem ? (8 + rem_shift) : 0;
 		rows = 1;
+		
 		elems_weights = d1;
 	}
 
@@ -191,7 +192,7 @@ __global__ void dequant_hex_kernel(
 		}
 	} else {
 		if (!rem) {
-			out_a[idx] = 0.0f;
+			out_a[idx] = 0.0f;	
 			if ((mode == 3 || is_bias) && mode != 5) out_b[pos] = 0.0f;
 			return;
 		}

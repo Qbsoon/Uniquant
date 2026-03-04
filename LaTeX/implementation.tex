@@ -105,6 +105,11 @@ Zbiór ten zawiera nagrania audio wypowiadanych słów z 8 kategorii: "down", "g
 Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/antfilatov/mini-speech-commands} \\
 Udostępniony został na licencji \texit{CC BY 4.0}, co oznacza, że jest darmowy do użytokowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
 
+Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem zbiór danych o ziołach "Herb Classification Dataset" z platformy Kaggle. \\
+Zbiór ten zawiera zdjęcia 91 róznych ziół. \\
+Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/ai4a-lab/herb-plant-classification-dataset} \\
+Udostępniony został na licencji \textit{CC BY-NC-SA 4.0}, co oznacza, że jest darmowy do użytokowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
+
 \subsection{Testy na regresji}
 Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strzukturze przedstawionej w tabeli 3.2, "Struktura modelu regresji". \\
 \begin{table}[htbp]
@@ -364,9 +369,13 @@ Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży m
         \hline
         LayerNormalization & [None, 4096] & 8 192 \\
         \hline
+        Dropout & [None, 4096] & 0 \\
+        \hline
         Dense & [None, 2048] & 8 390 656 \\
         \hline
         LayerNormalization & [None, 2048] & 4 096 \\
+        \hline
+        Dropout & [None, 2048] & 0 \\
         \hline
         Dense & [None, 1024] & 2 098 176 \\
         \hline
@@ -426,6 +435,142 @@ Wyniki testów zostały przedstawione w tabelach 3.9 i 3.10.
 
 Wyniki pokazują, że wariant 4-bitowy nie radzi sobie dobrze z kwantyzacją tego modelu, osiągając wyniki poniżej 50\% w większości metryk dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie znacznie lepiej, osiągając wyniki bliskie oryginału dla prawie wszystkich rozmiarów bloków, z wyjątkiem lekkiego spadku na rozmiarze bloku 64. \\
 
+\subsection{Testy na klasyfikacji wieloklasowej obrazów}
+Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 3.11, "Struktura modelu klasyfikacji wieloklasowej obrazów". \\
+\begin{table}[htbp]
+    \centering
+    \caption{Struktura modelu klasyfikacji wieloklasowej obrazów}
+    \begin{tabular}{|c|c|c|}
+        \hline
+        Typ warstwy & Wymiary wyjściowe & L. parametrów \\
+        \hline
+        Conv2D & [None, 256, 256, 64] & 1 792 \\
+        \hline
+        BatchNormalization & [None, 256, 256, 64] & 256 \\
+        \hline
+        Activation & [None, 256, 256, 64] & 0 \\
+        \hline
+        Conv2D & [None, 256, 256, 64] & 36 928 \\
+        \hline
+        BatchNormalization & [None, 256, 256, 64] & 256 \\
+        \hline
+        Activation & [None, 256, 256, 64] & 0 \\
+        \hline
+        MaxPooling2D & [None, 128, 128, 64] & 0 \\
+        \hline
+        Conv2D & [None, 128, 128, 128] & 73 856 \\
+        \hline
+        BatchNormalization & [None, 128, 128, 128] & 512 \\
+        \hline
+        Activation & [None, 128, 128, 128] & 0 \\
+        \hline
+        Conv2D & [None, 128, 128, 128] & 147 584 \\
+        \hline
+        BatchNormalization & [None, 128, 128, 128] & 512 \\
+        \hline
+        Activation & [None, 128, 128, 128] & 0 \\
+        \hline
+        MaxPooling2D & [None, 64, 64, 128] & 0 \\
+        \hline
+        Conv2D & [None, 64, 64, 256] & 295 168 \\
+        \hline
+        BatchNormalization & [None, 64, 64, 256] & 1 024 \\
+        \hline
+        Activation & [None, 64, 64, 256] & 0 \\
+        \hline
+        Conv2D & [None, 64, 64, 256] & 590 080 \\
+        \hline
+        BatchNormalization & [None, 64, 64, 256] & 1 024 \\
+        \hline
+        Activation & [None, 64, 64, 256] & 0 \\
+        \hline
+        MaxPooling2D & [None, 32, 32, 256] & 0 \\
+        \hline
+        Conv2D & [None, 32, 32, 512] & 1 180 160 \\
+        \hline
+        BatchNormalization & [None, 32, 32, 512] & 2 048 \\
+        \hline
+        Activation & [None, 32, 32, 512] & 0 \\
+        \hline
+        Conv2D & [None, 32, 32, 512] & 2 359 808 \\
+        \hline
+        BatchNormalization & [None, 32, 32, 512] & 2 048 \\
+        \hline
+        Activation & [None, 32, 32, 512] & 0 \\
+        \hline
+        MaxPooling2D & [None, 16, 16, 512] & 0 \\
+        \hline
+        GlobalAveragePooling2D & [None, 512] & 0 \\
+        \hline
+        Dense & [None, 8192] & 4 202 496 \\
+        \hline
+        Dropout & [None, 8192] & 0 \\
+        \hline
+        Dense & [None, 4096] & 33 558 528 \\
+        \hline
+        Dropout & [None, 4096] & 0 \\
+        \hline
+        Dense & [None, 2048] & 8 390 656 \\
+        \hline
+        Dropout & [None, 2048] & 0 \\
+        \hline
+        Dense & [None, 1024] & 2 098 176 \\
+        \hline
+        Dense & [None, 91] & 93 275 \\
+        \hline
+    \end{tabular}
+\end{table}
+Warstwy korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Softmax". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty categorical crossentropy oraz metryki categorical accuracy. \\
+Model ten został wytrenowany na zbiorze danych obrazów ziół przez 45 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
+Parametrem przewidywanym w testach była klasa obrazu, czyli rodzaj zioła. \\
+Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Wyniki testów zostały przedstawione w tabelach 3.12 i 3.13.
+\begin{table}
+    \centering
+    \caption{Tabela wyników 4-bit}
+    \begin{tabular}{|c|c|c|c|c|c|}
+        \hline
+        Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\
+        \hline
+        Oryginał & 0,7322 & 0,7562 & 0,7101 & 0,7140 & 608 MiB \\
+        \hline
+        Bloki 128 & 0,0074 & 0,0056 & 0,0059 & 0,0016 & 28 MiB \\
+        \hline
+        Bloki 64 & 0,0090 & 0,0001 & 0,0081 & 0,0002 & 32 MiB \\
+        \hline
+        Bloki 32 & 0,0123 & 0,0002 & 0,0117 & 0,0005 & 29 MiB \\
+        \hline
+        Bloki 16 & 0,0131 & 0,0005 & 0,0220 & 0,0010 & 38 MiB \\
+        \hline
+        Bloki 8 & 0,0115 & 0,0004 & 0,0089 & 0,0007 & 51 MiB \\
+        \hline
+    \end{tabular}
+\end{table}
+\begin{table}
+    \centering
+    \caption{Tabela wyników 8-bit}
+    \begin{tabular}{|c|c|c|c|c|c|}
+        \hline
+        Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\
+        \hline
+        Oryginał & 0,7322 & 0,7562 & 0,7101 & 0,7140 & 608 MiB \\
+        \hline
+        Bloki 128 & 0,7265 & 0,7484 & 0,7026 & 0,7055 & 53 MiB \\
+        \hline
+        Bloki 64 & 0,7297 & 0,7465 & 0,7078 & 0,7078 & 57 MiB \\
+        \hline
+        Bloki 32 & 0,7256 & 0,7498 & 0,7025 & 0,7045 & 54 MiB \\
+        \hline
+        Bloki 16 & 0,7297 & 0,7541 & 0,7067 & 0,7092 & 64 MiB \\
+        \hline
+        Bloki 8 & 0,7322 & 0,7495 & 0,7074 & 0,7099 & 76 MiB \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Wyniki pokazują, że wariant 4-bitowy nie radzi sobie w ogóle z kwantyzacją tego modelu, osiągając wyniki bliskie 0\% we wszystkich metrykach dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie bardzo dobrze, osiągając wyniki bliskie oryginału dla wszystkich rozmiarów bloków. \\
+Należy zauważyć, że te testy było o tyle inne i trudniejsze niż poprzednie, że występowało tu aż 91 klas, oraz że sprawność modelu według metryk była znacznie mniejsza niż w poprzednich testach. \\
+
 \section{Biblioteki i narzędzia testów}
 Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji wykorzystałem następujące narzędzia i biblioteki:
 \begin{itemize}
@@ -445,6 +590,6 @@ Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytoriu
 
 Wszelkie wyniki z tej sekcji zostały przeprowadzone na sprzęcie: \\
 CPU: AMD Ryzen 5 7600X \\
-GPU: NVIDIA GeForce RTX 4070 Ti Super 16GB\\
-RAM: 64 GB DDR5 \\
+GPU: MSI Expert RTX 4070 Ti Super 16GB\\
+RAM: 64 GB DDR5 6000MHz \\
 Korzystając z systemu Fedora 42 KDE.

@@ -197,23 +197,18 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 			d1 = layer['build_config']['input_shape'][1]
 			d2 = layer['config']['units']
 			if d2 >= pack_size:
-				layer_data = bin_data[ptr:ptr+(((((d1+1)*d2)//pack_size)*8) if d2>=pack_size else 0)+(8*(d1+1) if d2%pack_size != 0 else 0)+(((d1+1)*(d2+(d2%2)))*hpn)]
+				layer_data = bin_data[ptr:ptr+((((d1+1)*(d2//pack_size))*8) if d2>=pack_size else 0)+(8*(d1+1) if d2%pack_size != 0 else 0)+(((d1+1)*(d2+(d2%2 if quant_size==4 else 0)))*hpn)]
 				out_tensors = module.dequantize_dense_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, pack_size, quant_size, balanced, literal)
 
 				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
 			else:
 				layer_data = bin_data[ptr:ptr+((d1+1)*d2*8)]
-				w = np.array([])
+				w = np.empty((d1,d2), dtype=np.float32)
 				for i in range(d1):
-					w2 = np.array([])
 					for j in range(d2):
 						n0_hex = layer_data[(i*d2*8)+(j*8):(i*d2*8)+(j*8)+8]
 						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-						w2 = np.append(w2, n0)
-					if len(w) == 0:
-						w = w2
-					else:
-						w = np.vstack((w, w2))
+						w[i,j] = n0
 				w3 = np.array([])
 				for i in range(d2):
 					n0_hex = layer_data[(d1*d2*8)+(i*8):(d1*d2*8)+(i*8)+8]
@@ -229,32 +224,21 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 				d2 = int(layer['build_config']['input_shape'][2])
 			else:
 				d2 = int(layer['build_config']['input_shape'][1])
-			d2 = layer['build_config']['input_shape'][-1]
 			d3 = layer['config']['filters']
 			if d3 >= pack_size:
-				layer_data = bin_data[ptr:ptr+((((((d1*d2)+1)*d3)//pack_size)*8) if d3>=pack_size else 0)+(8*((d1*d2)+1) if d3%pack_size != 0 else 0)+((((d1*d2)+1)*(d3+(d3%2)))*hpn)]
+				layer_data = bin_data[ptr:ptr+(((((d1*d2)+1)*(d3//pack_size))*8) if d3>=pack_size else 0)+(8*((d1*d2)+1) if d3%pack_size != 0 else 0)+((((d1*d2)+1)*(d3+(d3%2 if quant_size == 4 else 0)))*hpn)]
 				out_tensors = module.dequantize_conv1d_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, d3, pack_size, quant_size, balanced, literal)
 				
 				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
 			else:
 				layer_data = bin_data[ptr:ptr+(((d1*d2)+1)*d3*8)]
-				w = np.array([])
+				w = np.empty((d1,d2,d3), dtype=np.float32)
 				for i in range(d1):
-					w2 = np.array([])
 					for j in range(d2):
-						w3 = np.array([])
 						for k in range(d3):
 							n0_hex = layer_data[(i*d2*d3*8)+(j*d3*8)+(k*8):(i*d2*d3*8)+(j*d3*8)+(k*8)+8]
 							n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-							w3 = np.append(w3, n0)
-						if len(w2) == 0:
-							w2 = w3
-						else:
-							w2 = np.vstack((w2, w3))
-					if len(w) == 0:
-						w = w2
-					else:
-						w = np.vstack((w, w2))
+							w[i,j,k] = n0
 				w4 = np.array([])
 				for i in range(d3):
 					n0_hex = layer_data[(d1*d2*d3*8)+(i*8):(d1*d2*d3*8)+(i*8)+8]
@@ -264,46 +248,40 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 				weights[layer['config']['name']] = [w, w4]
 		
 		if layer['class_name'] == 'Conv2D':
-			d1 = layer['build_config']['input_shape'][1]
-			d2 = layer['build_config']['input_shape'][2]
-			d3 = layer['build_config']['input_shape'][3]
+			d1 = layer['config']['kernel_size'][0]
+			d2 = layer['config']['kernel_size'][1]
+			if layer['config'].get('data_format', 'channels_last') == 'channels_last':
+				d3 = layer['build_config']['input_shape'][3]
+			else:
+				d3 = layer['build_config']['input_shape'][1]
 			d4 = layer['config']['filters']
+			if (pack_size == 128):
+				print(layer['config']['name'] + ": "+str(d1)+"x"+str(d2)+"x"+str(d3)+"x"+str(d4))
 			if d4 >= pack_size:
-				layer_data = bin_data[ptr:ptr+((((((d1*d2*d3)+1)*d4)//pack_size)*8) if d4>=pack_size else 0)+(8*((d1*d2*d3)+1) if d4%pack_size != 0 else 0)+((((d1*d2*d3)+1)*(d4+(d4%2)))*hpn)]
+				layer_data = bin_data[ptr:ptr+(((((d1*d2*d3)+1)*(d4//pack_size))*8) if d4>=pack_size else 0)+(8*((d1*d2*d3)+1) if d4%pack_size != 0 else 0)+((((d1*d2*d3)+1)*(d4+(d4%2 if quant_size == 4 else 0)))*hpn)]
 				out_tensors = module.dequantize_conv2d_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, d3, d4, pack_size, quant_size, balanced, literal)
 
+				if (pack_size == 128):
+					print("kernel shape: " + str(out_tensors[0].shape))
 				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
 			else:
 				layer_data = bin_data[ptr:ptr+(((d1*d2*d3)+1)*d4*8)]
-				w = np.array([])
+				w = np.empty((d1,d2,d3,d4), dtype=np.float32)
 				for i in range(d1):
-					w2 = np.array([])
 					for j in range(d2):
-						w3 = np.array([])
 						for k in range(d3):
-							w4 = np.array([])
 							for l in range(d4):
 								n0_hex = layer_data[(i*d2*d3*d4*8)+(j*d3*d4*8)+(k*d4*8)+(l*8):(i*d2*d3*d4*8)+(j*d3*d4*8)+(k*d4*8)+(l*8)+8]
 								n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-								w4 = np.append(w4, n0)
-							if len(w3) == 0:
-								w3 = w4
-							else:
-								w3 =  np.vstack((w3, w4))
-						if len(w2) == 0:
-							w2 = w3
-						else:
-							w2 = np.vstack((w2, w3))
-					if len(w) == 0:
-						w = w2
-					else:
-						w = np.vstack((w, w2))
+								w[i,j,k,l] = n0
 				w5 = np.array([])
 				for i in range(d4):
 					n0_hex = layer_data[(d1*d2*d3*d4*8)+(i*8):(d1*d2*d3*d4*8)+(i*8)+8]
 					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
 					w5 = np.append(w5, n0)
 
+				if (pack_size == 128):
+					print("direct shape: " + str(w.shape))
 				weights[layer['config']['name']] = [w, w5]
 		
 		if layer['class_name'] == 'GRU':
@@ -315,15 +293,25 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 			w = np.array([])
 			batches = d2 // pack_size
 			if d2 >= pack_size:
-				layer_data = bin_data[ptr:ptr+(((((d1+units+biases)*d2)//pack_size)*8) if d2>=pack_size else 0)+(8*(d1+units+biases) if d2%pack_size != 0 else 0)+(((d1+units+biases)*(d2+(d2%2)))*hpn)]
+				layer_data = bin_data[ptr:ptr+((((d1+units+biases)//(d2*pack_size))*8) if d2>=pack_size else 0)+(8*(d1+units+biases) if d2%pack_size != 0 else 0)+(((d1+units+biases)*(d2+(d2%2 if quant_size == 4 else 0)))*hpn)]
 				out_tensors = module.dequantize_gru_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, units, biases, pack_size, quant_size, balanced, literal)
 
 				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1], out_tensors[2]]
+			else:
+				layer_data = bin_data[ptr:ptr+((d1+units+biases)*d2*8)]
+				w = np.empty((d1+units+biases,d2), dtype=np.float32)
+				for i in range(d1+units+biases):
+					for j in range(d2):
+						n0_hex = layer_data[(i*d2*8)+(j*8):(i*d2*8)+(j*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w[i,j] = n0
+				
+				weights[layer['config']['name']] = [w]
 
 		if layer['class_name'] == 'LayerNormalization':
 			d1 = layer['build_config']['input_shape'][-1]
 			if (d1 >= pack_size):
-				layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2))*hpn))*2]
+				layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2 if quant_size == 4 else 0))*hpn))*2]
 				out_tensors = module.dequantize_layernorm_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, pack_size, quant_size, balanced, literal)
 
 				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
@@ -345,7 +333,7 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 		if layer['class_name'] == 'BatchNormalization':
 			d1 = layer['build_config']['input_shape'][-1]
 			if (d1 >= pack_size):
-				layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2))*hpn))*4]
+				layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2 if quant_size == 4 else 0))*hpn))*4]
 				out_tensors = module.dequantize_batchnorm_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, pack_size, quant_size, balanced, literal)
 
 				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1], out_tensors[2], out_tensors[3]]

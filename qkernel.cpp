@@ -18,7 +18,10 @@ __device__ __forceinline__ uint32_t bswap32(uint32_t v) {
 __device__ __forceinline__ void write_be_f32(uint8_t* dst, float v) {
 	uint32_t u = __float_as_uint(v);
 	u = bswap32(u);
-	*reinterpret_cast<uint32_t*>(dst) = u;
+	dst[0] = (uint8_t)(u & 0xFF);
+	dst[1] = (uint8_t)((u >> 8) & 0xFF);
+	dst[2] = (uint8_t)((u >> 16) & 0xFF);
+	dst[3] = (uint8_t)((u >> 24) & 0xFF);
 }
 
 __device__ __forceinline__ int clamp_int(int v, int lo, int hi) {
@@ -33,21 +36,29 @@ __global__ void quant_pack_kernel(
 	int quant_size,
 	int half_point,
 	int64_t blocks_per_inner,
-	int64_t blocks_per_row,
 	int64_t total_blocks,
 	int64_t stride,
+	int64_t rem,
+	int64_t rem_payload,
+	int64_t rem_stride,
+	int64_t row_bytes,
 	uint8_t* out
 ) {
 	int64_t bid = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
 	if (bid >= total_blocks) return;
+
+	int64_t row_idx = bid / blocks_per_inner;
+	int64_t blk_in_row = bid % blocks_per_inner;
+	int is_rem_block = (rem > 0 && blk_in_row == (blocks_per_inner - (rem > 0 ? 1 : 0))) ? 1 : 0;
+	int64_t actual_pack = is_rem_block ? rem : pack_size;
 
 	int64_t base = 0;
 
 	if (mode == 0) {
 		base = bid * pack_size;
 	} else if (mode == 1) {
-		int64_t i = bid / blocks_per_row;
-		int64_t jb = bid - i * blocks_per_row;
+		int64_t i = bid / blocks_per_inner;
+		int64_t jb = bid - i * blocks_per_inner;
 		int64_t start = jb * pack_size;
 		base = i * d1 + start;
 	} else if (mode == 2) {
@@ -71,10 +82,16 @@ __global__ void quant_pack_kernel(
 	}
 
 	const float* src = w + base;
-	uint8_t* dst = out + bid * stride;
+	int64_t out_off = row_idx * row_bytes;
+	if (is_rem_block) {
+		out_off += (blocks_per_inner - 1) * stride;
+	} else {
+		out_off += blk_in_row * stride;
+	}
+	uint8_t* dst = out + out_off;
 
 	float max_abs = 0.0f;
-	for (int64_t t = 0; t < pack_size; ++t) {
+	for (int64_t t = 0; t < actual_pack; ++t) {
 		float a = fabsf(src[t]);
 		if (a > max_abs) max_abs = a;
 	}
@@ -87,7 +104,7 @@ __global__ void quant_pack_kernel(
 	int hi = (half_point - 1);
 
 	if (quant_size == 8) {
-		for (int64_t t = 0; t < pack_size; ++t) {
+		for (int64_t t = 0; t < actual_pack; ++t) {
 			float x = src[t];
 			float qf;
 			if (scale == 0.0f) qf = (x > 0.0f) ? (float)hi : ((x < 0.0f) ? (float)lo : 0.0f);
@@ -97,14 +114,15 @@ __global__ void quant_pack_kernel(
 		}
 	} else {
 		int64_t o = 0;
-		for (int64_t t = 0; t < pack_size; t += 2) {
-			float x0 = src[t];
+		int64_t padded = actual_pack + (actual_pack & 1);
+		for (int64_t t = 0; t < padded; t += 2) {
+			float x0 = (t < actual_pack) ? src[t] : 0.0f;
 			float qf0;
 			if (scale == 0.0f) qf0 = (x0 > 0.0f) ? (float)hi : ((x0 < 0.0f) ? (float)lo : 0.0f);
 			else qf0 = nearbyintf(x0 / scale);
 			int q0 = clamp_int((int)qf0, lo, hi) + half_point;
 
-			float x1 = src[t + 1];
+			float x1 = (t + 1 < actual_pack) ? src[t + 1] : 0.0f;
 			float qf1;
 			if (scale == 0.0f) qf1 = (x1 > 0.0f) ? (float)hi : ((x1 < 0.0f) ? (float)lo : 0.0f);
 			else qf1 = nearbyintf(x1 / scale);
@@ -125,25 +143,28 @@ static torch::Tensor quantize_pack_impl(int mode, torch::Tensor w_cpu, int64_t p
 
 	int64_t d0 = 0, d1 = 0, d2 = 0, d3 = 0;
 	int64_t blocks_per_inner = 0;
-	int64_t blocks_per_row = 0;
 	int64_t total_blocks = 0;
 
 	if (mode == 0) {
 		TORCH_CHECK(w_cpu.dim() == 1, "w_cpu must be 1D");
 		d0 = w_cpu.size(0);
-		total_blocks = d0 / pack_size;
+		blocks_per_inner = d0 / pack_size;
+		if (d0 % pack_size != 0) blocks_per_inner += 1;
+		total_blocks = blocks_per_inner;
 	} else if (mode == 1) {
 		TORCH_CHECK(w_cpu.dim() == 2, "w_cpu must be 2D");
 		d0 = w_cpu.size(0);
 		d1 = w_cpu.size(1);
-		blocks_per_row = d1 / pack_size;
-		total_blocks = d0 * blocks_per_row;
+		blocks_per_inner = d1 / pack_size;
+		if (d1 % pack_size != 0) blocks_per_inner += 1;
+		total_blocks = d0 * blocks_per_inner;
 	} else if (mode == 2) {
 		TORCH_CHECK(w_cpu.dim() == 3, "w_cpu must be 3D");
 		d0 = w_cpu.size(0);
 		d1 = w_cpu.size(1);
 		d2 = w_cpu.size(2);
 		blocks_per_inner = d2 / pack_size;
+		if (d2 % pack_size != 0) blocks_per_inner += 1;
 		total_blocks = d0 * d1 * blocks_per_inner;
 	} else {
 		TORCH_CHECK(w_cpu.dim() == 4, "w_cpu must be 4D");
@@ -152,15 +173,29 @@ static torch::Tensor quantize_pack_impl(int mode, torch::Tensor w_cpu, int64_t p
 		d2 = w_cpu.size(2);
 		d3 = w_cpu.size(3);
 		blocks_per_inner = d3 / pack_size;
+		if (d3 % pack_size != 0) blocks_per_inner += 1;
 		total_blocks = d0 * d1 * d2 * blocks_per_inner;
 	}
 
 	int64_t payload = (quant_size == 4) ? (pack_size / 2) : pack_size;
 	int64_t stride = 4 + payload;
-	int64_t total_bytes = total_blocks * stride;
+
+	int64_t inner_dim = (mode == 0) ? d0 : ((mode == 1) ? d1 : ((mode == 2) ? d2 : d3));
+	int64_t rem = inner_dim % pack_size;
+	int64_t rem_payload = 0, rem_stride = 0;
+	if (rem > 0) {
+		int64_t rem_padded = rem + (rem & 1);
+		rem_payload = (quant_size == 4) ? (rem_padded / 2) : rem;
+		rem_stride = 4 + rem_payload;
+	}
+
+	int64_t num_rows = total_blocks / blocks_per_inner;
+	int64_t full_blocks = inner_dim / pack_size;
+	int64_t row_bytes = full_blocks * stride + (rem > 0 ? rem_stride : 0);
+	int64_t total_bytes = num_rows * row_bytes;
 
 	auto w = w_cpu.to(torch::kCUDA);
-	auto out = torch::empty({total_bytes}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kUInt8));
+	auto out = torch::zeros({total_bytes}, torch::TensorOptions().device(torch::kCUDA).dtype(torch::kUInt8));
 
 	int threads = 256;
 	int grid = (int)cdiv_i64(total_blocks, threads);
@@ -173,9 +208,12 @@ static torch::Tensor quantize_pack_impl(int mode, torch::Tensor w_cpu, int64_t p
 		quant_size,
 		half_point,
 		blocks_per_inner,
-		blocks_per_row,
 		total_blocks,
 		stride,
+		rem,
+		rem_payload,
+		rem_stride,
+		row_bytes,
 		(uint8_t*)out.data_ptr<uint8_t>()
 	);
 	C10_CUDA_KERNEL_LAUNCH_CHECK();
