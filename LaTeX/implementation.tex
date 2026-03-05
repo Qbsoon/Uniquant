@@ -40,7 +40,7 @@ Skrótowa, punktowa prezentacja procesu dekwantyzacji:
 \end{itemize}
 
 Dekwantyzacja zaczyna się od odczytania informacji o kwantyzacji (rozmiar bloku, liczba bitów) z jednego pliku json z paczki \textit{.uniq} oraz informacji o strukturze modelu z drugiego pliku json. Te drugie wczytywane są funkcjami tensorflow, które odtwarzają z nich model z pustymi wagami. Następnie wczytywany jest plik binarny z wagami i skalami do zmiennej, która będzie przechowywać te wagi przez cały proces dekwantyzacji. \\
-Po tym rozpoczyna się pętla po warstwach modelu w postaci iteracji po obiektach struktury modelu. Po stronie dekwantyzacji ścieżki kodu nie są podzielone na podstawie liczby wymiarów warstw, a na podstawie nazw typów warstw. Obsługiwane są warstwy Dense, Conv1D, Conv2D, GRU i LayerNormalization. Na początku kodu dla każdej warstwy jest wyliczany zakres jej danych w wektorze wag na podstawie rozmiarów warstwy oraz wskaźnika aktualnej pozycji w wektorze wag, który jest aktualizowany po każdej warstwie. \\
+Po tym rozpoczyna się pętla po warstwach modelu w postaci iteracji po obiektach struktury modelu. Po stronie dekwantyzacji ścieżki kodu nie są podzielone na podstawie liczby wymiarów warstw, a na podstawie nazw typów warstw. Obsługiwane są warstwy Dense, Conv1D, Conv2D, GRU i LayerNormalization. Na początku kodu dla każdej warstwy jest wyliczany zakres jej danych w wektorze wag na podstawie rozmiarów warstwy oraz wskaźnika aktualnej pozycji w wektorze wag, który jest aktualizowany po każdej warstwie. Wzór na wektor wag: \\
 \vspace{-1.5em}
 \begin{center}
 $\mathit{w}[\mathit{ptr} : \mathit{ptr} + \mathit{layer\_size}]$ \\
@@ -69,7 +69,7 @@ Taki kod wykonuje równolegle obliczenia, dzieląc wykonania pętli pomiędzy do
 	\end{tabular}
 \end{table}
 
-\section{Biblioteki i narzędzia}
+\section{Biblioteki i narzędzia kodu kwantyzacji}
 Do implementacji biblioteki \textit{Uniquant} wykorzystałem następujące narzędzia i biblioteki:
 \begin{itemize}
     \item Python 3.13.11
@@ -94,6 +94,28 @@ Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytoriu
 W celu przetestowania wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji, przeprowadziłem testy na różnych modelach i konfiguracjach. \\
 Testy te polegały na porównaniu wyników modeli po dekwantyzacji z wynikami oryginalnych modeli. Wyniki zostały zebrane z wykonanych 24 kolejnych testów dla każdego przypadku, uśrednione z wyłączeniem 4 granicznych (2 maksymalnych i 2 minimalnych) wyników w każdym przypadku i zaokrąglone do przedstawianych liczb po przecinku.\\
 Pliki testów znajdują się w repozytorium GitHub.
+\subsection{Biblioteki i narzędzia testów}
+Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji wykorzystałem następujące narzędzia i biblioteki:
+\begin{itemize}
+    \item Python 3.13.11
+    \item Biblioteki Python:
+    \begin{itemize}
+        \item TensorFlow - do tworzenia modeli i trenowania ich na zbiorze danych
+        \item NumPy
+        \item Scikit-learn - do obliczania metryk precision, recall i f1-score
+        \item Pandas - do wczytywania zbioru danych i przygotowywania
+        \item Tqdm - do wyświetlania pasków postępu podczas iteracji po testach
+        \item Kagglehub - do pobierania zbioru danych z platformy Kaggle
+        \item Json
+    \end{itemize}
+\end{itemize}
+Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytorium GitHub.
+
+Wszelkie wyniki z tej sekcji zostały przeprowadzone na sprzęcie: \\
+CPU: AMD Ryzen 5 7600X \\
+GPU: MSI Expert RTX 4070 Ti Super 16GB\\
+RAM: 64 GB DDR5 6000MHz \\
+Korzystając z systemu Fedora 42 KDE.
 \subsection{Zbiory danych}
 Do testów na regresji i klasyfikacji binarnej wykorzystałem zbiór danych o ubezpieczeniach medycznych "Medical Insurance Cost Prediction" z platformy Kaggle. \\
 Zbiór ten zawiera dane o pacjentach, ich warunkach, stylu życia, chorobach, wizytach u lekarza, ubezpieczeniach oraz kosztach leczenia. \\
@@ -570,26 +592,3 @@ Wyniki testów zostały przedstawione w tabelach 3.12 i 3.13.
 
 Wyniki pokazują, że wariant 4-bitowy nie radzi sobie w ogóle z kwantyzacją tego modelu, osiągając wyniki bliskie 0\% we wszystkich metrykach dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie bardzo dobrze, osiągając wyniki bliskie oryginału dla wszystkich rozmiarów bloków. \\
 Należy zauważyć, że te testy było o tyle inne i trudniejsze niż poprzednie, że występowało tu aż 91 klas, oraz że sprawność modelu według metryk była znacznie mniejsza niż w poprzednich testach. \\
-
-\section{Biblioteki i narzędzia testów}
-Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji wykorzystałem następujące narzędzia i biblioteki:
-\begin{itemize}
-    \item Python 3.13.11
-    \item Biblioteki Python:
-    \begin{itemize}
-        \item TensorFlow - do tworzenia modeli i trenowania ich na zbiorze danych
-        \item NumPy
-        \item Scikit-learn - do obliczania metryk precision, recall i f1-score
-        \item Pandas - do wczytywania zbioru danych i przygotowywania
-        \item Tqdm - do wyświetlania pasków postępu podczas iteracji po testach
-        \item Kagglehub - do pobierania zbioru danych z platformy Kaggle
-        \item Json
-    \end{itemize}
-\end{itemize}
-Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytorium GitHub.
-
-Wszelkie wyniki z tej sekcji zostały przeprowadzone na sprzęcie: \\
-CPU: AMD Ryzen 5 7600X \\
-GPU: MSI Expert RTX 4070 Ti Super 16GB\\
-RAM: 64 GB DDR5 6000MHz \\
-Korzystając z systemu Fedora 42 KDE.
