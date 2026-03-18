@@ -16,6 +16,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from uniquant import quantize, dequantize, dequantize_save
 from tqdm.auto import tqdm
 import json
+import time
 
 train_wav_ds = tf.keras.utils.audio_dataset_from_directory(
 	directory=data_root,
@@ -145,11 +146,15 @@ num_t = [8, 16, 32, 64, 128]
 progress = tqdm(total=len(quant_t)*len(num_t), desc="Tests", unit="test", miniters=1, mininterval=0)
 for quant_size in quant_t:
 	for num in num_t:
+		start = time.perf_counter()
 		quantize("model.keras", quant_name='m_c1d'+str(num)+"_"+str(quant_size), overwrite=True, pack_size=num, quant_size = quant_size)
+		qtime = time.perf_counter() - start
+		start = time.perf_counter()
 		model = dequantize('m_c1d'+str(num)+"_"+str(quant_size)+".uniq")
+		dqtime = time.perf_counter() - start
 		accuracy, precision, recall, f1 = eval_ds(model, test_ds)
 		print(f"Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}, F1: {f1}")
-		results.append({"quant_size": quant_size, "pack_size": num, "accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1})
+		results.append({"quant_size": quant_size, "pack_size": num, "accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1, "quant_time": qtime, "dequant_time": dqtime})
 		del model
 		progress.update(1)
 	

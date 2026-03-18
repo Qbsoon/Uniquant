@@ -19,6 +19,7 @@ import numpy as np
 from uniquant import quantize, dequantize, dequantize_save
 from tqdm.auto import tqdm
 import json
+import time
 
 X = data.drop('risk_score', axis=1)
 y = data['risk_score']
@@ -80,14 +81,18 @@ num_t = [8, 16, 32, 64, 128]
 progress = tqdm(total=len(quant_t)*len(num_t), desc="Tests", unit="test", miniters=1, mininterval=0)
 for quant_size in quant_t:
 	for num in num_t:
+		start = time.perf_counter()
 		quantize("model.keras", quant_name='m'+str(num)+"_"+str(quant_size), overwrite=True, pack_size=num, quant_size=quant_size)
+		qtime = time.perf_counter() - start
+		start = time.perf_counter()
 		model = dequantize("m"+str(num)+"_"+str(quant_size)+".uniq")
+		dqtime = time.perf_counter() - start
 		y_pred = model.predict(X_test).flatten()
 		mae = mean_absolute_error(y_test, y_pred)
 		mse = mean_squared_error(y_test, y_pred)
 		rmse = np.sqrt(mse)
 		print(f"MAE: {mae}, MSE: {mse}, RMSE: {rmse}")
-		results.append({"quant_size": quant_size, "pack_size": num, "mae": mae, "mse": mse, "rmse": rmse})
+		results.append({"quant_size": quant_size, "pack_size": num, "mae": mae, "mse": mse, "rmse": rmse, "quant_time": qtime, "dequant_time": dqtime})
 		del model
 		progress.update(1)
 
