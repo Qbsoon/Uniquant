@@ -54,20 +54,8 @@ Po zakończeniu dekwantyzacji, funkcja zwraca gotowy model z przypisanymi wagami
 W trakcie implementacji biblioteki stwierdziłem, że czasy kwantyzacji oraz dekwantyzacji da się przyspieszyć wykorzystując możliwości obliczeń równoległych na kartach graficznych z rdzeniami CUDA i tworząc tak zwane kernele CUDA. \\
 Z tego powodu wydzieliłem kod na dwa pliki "uniquant.py" i "uniquant\_legacy.py". Ten pierwszy zawiera implementację z wykorzystaniem CUDA, a drugi oryginalną implementację bez tego wsparcia. W ten sposób można łatwo porównać oba podejścia i ocenić wpływ wykorzystania CUDA na czasy kwantyzacji i dekwantyzacji. \\
 Implementacja CUDA nadal zawiera ten sam kod podstawowy, ale podobieństwa kończą się na etapie wydzielenia wag warstwy. W kodzie CUDA trafiają one do tablicy numpy, która jest kopiowana do pamięci GPU. Następnie z obecnymi danymi wywoływana jest odpowiednia dla warstwy funkcja w osobnym pliku z kodem w języku C++, korzystającym z narzędzi CUDA. \\
-Taki kod wykonuje równolegle obliczenia, dzieląc wykonania pętli pomiędzy dostępne rdzenie CUDA, co znacząco przyspiesza cały proces kwantyzacji i dekwantyzacji. Po zakończeniu obliczeń, wyniki są kopiowane z powrotem na CPU do pamięci RAM, skąd są zapisywane do pliku lub przypisywane do warstwy modelu, w zależności od tego, czy jest to kwantyzacja, czy dekwantyzacja.
-\begin{table}[htbp]
-	\centering
-    \caption{Tabela porównania czasów}
-	\begin{tabular}{|c|c|c|}
-		\hline
-		Wersja & Średni czas kwantyzacji & Średni czas dekwantyzacji \\
-		\hline
-		Oryginał & 50 s & 260 s \\
-		\hline
-		CUDA & $\sim$ 0 s & 5 s \\
-		\hline
-	\end{tabular}
-\end{table}
+Taki kod wykonuje równolegle obliczenia, dzieląc wykonania pętli pomiędzy dostępne rdzenie CUDA, co znacząco przyspiesza cały proces kwantyzacji i dekwantyzacji. Po zakończeniu obliczeń, wyniki są kopiowane z powrotem na CPU do pamięci RAM, skąd są zapisywane do pliku lub przypisywane do warstwy modelu, w zależności od tego, czy jest to kwantyzacja, czy dekwantyzacja. \\
+Tabela 4.13 przedstawia porównanie średnich czasów kwantyzacji i dekwantyzacji pozyskanych z opisywanych poniżej testów.
 
 \section{Biblioteki i narzędzia kodu kwantyzacji}
 Do implementacji biblioteki \textit{Uniquant} wykorzystałem następujące narzędzia i biblioteki:
@@ -120,20 +108,25 @@ Korzystając z systemu Fedora 42 KDE.
 Do testów na regresji i klasyfikacji binarnej wykorzystałem zbiór danych o ubezpieczeniach medycznych "Medical Insurance Cost Prediction" z platformy Kaggle. \\
 Zbiór ten zawiera dane o pacjentach, ich warunkach, stylu życia, chorobach, wizytach u lekarza, ubezpieczeniach oraz kosztach leczenia. \\
 Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/mohankrishnathalla/medical-insurance-cost-prediction} \\
-Udostępniony został na licencji \textit{C00: Pulic Domain}, co oznacza, że jest darmowy do użytokowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
+Udostępniony został na licencji \textit{C00: Pulic Domain}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
 
-Do testów na klasyfikacji wieloklasowej audio wykorzystałem zbiór danych o wypowiadanych słowach "mini_speech_commands" z platformy Kaggle. \\
+Do klasyfikacji binarnej wykorzystałem również zbiór danych o chorobach serca "Heart Disease Dataset" z platformy Kaggle. \\
+Zbiór ten zawiera dane o pacjentach, takie jak np. poziom cholesterolu, i pozwala na przewidywanie, czy pacjent ma chorobę serca, czy nie. \\
+Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/yasserh/heart-disease-dataset} \\
+Udostępniony został na licencji \textit{C00: Public Domain}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
+
+Do testów na klasyfikacji wieloklasowej audio wykorzystałem zbiór danych o wypowiadanych słowach "mini\_speech\_commands" z platformy Kaggle. \\
 Zbiór ten zawiera nagrania audio wypowiadanych słów z 8 kategorii: "down", "go", "left", "no", "right", "stop", "up" i "yes". \\
 Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/antfilatov/mini-speech-commands} \\
-Udostępniony został na licencji \texit{CC BY 4.0}, co oznacza, że jest darmowy do użytokowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
+Udostępniony został na licencji \textit{CC BY 4.0}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
 
 Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem zbiór danych o ziołach "Herb Classification Dataset" z platformy Kaggle. \\
 Zbiór ten zawiera zdjęcia 91 róznych ziół. \\
 Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/ai4a-lab/herb-plant-classification-dataset} \\
-Udostępniony został na licencji \textit{CC BY-NC-SA 4.0}, co oznacza, że jest darmowy do użytokowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
+Udostępniony został na licencji \textit{CC BY-NC-SA 4.0}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
 
 \subsection{Testy na regresji}
-Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strzukturze przedstawionej w tabeli 3.2, "Struktura modelu regresji". \\
+Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strzukturze przedstawionej w tabeli 4.1, "Struktura modelu regresji". \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu regresji}
@@ -193,7 +186,7 @@ Wszystkie warstwy Dense korzystają z aktywacji "GeLU". Model został skompilowa
 Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach była kolumna "risk\_score", która jest oceną ryzyka pacjenta na podstawie jego danych. Jego wartości pochodzą z zakresu [0, 1], ze średnią wartością równą 0,519849 i odchyleniem standardowym 0,250669.\\
 Poza MAE i MSE, testy korzystały też z metryki pierwiastka średniego błędu kwadratowego (RMSE) i sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
-Wyniki testów zostały przedstawione w tabelach 3.3 i 3.4.
+Wyniki testów zostały przedstawione w tabelach 4.2 i 4.3. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku 4.1.
 \begin{table}
     \centering
     \caption{Tabela wyników 4-bit}
@@ -236,11 +229,17 @@ Wyniki testów zostały przedstawione w tabelach 3.3 i 3.4.
         \hline
     \end{tabular}
 \end{table}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{test_results.png}
+    \caption{Porównanie parametru mae na wykresie dla regresji}
+    \label{fig:regression_results}
+\end{figure}
 
-Jak widać na przedstawionych tabelach, wyniki poprawiają się wraz ze wzrostem rozmiaru bloków, a wariant 8-bitowy zazwyczaj osiąga lepsze wyniki niż wariant 4-bitowy. Spoglądając na wyniki i rozmiary plików, rozmiar 32 bloków w wariancie 8-bitowym oraz rozmiar 64 bloków w wariancie 4-bitowym wydają się być rozsądnymi wyborami.
+Jak widać na przedstawionych wynikach, wyniki na rozmiarach bloków 32-128 są bardzo zbliżone do oryginalnego modelu, niezależnie od wariantu bitów. Za to rozmiary bloków 8 i 16 radzą sobie znacznie gorzej. Spoglądając na wyniki i rozmiary plików, rozmiar 64 bloków w wariancie 4-bitowym wydaje się być rozsądnym wyborem.
 
 \subsection{Testy na klasyfikacji binarnej}
-Do testów na klasyfikacji binarnej wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 3.5, "Struktura modelu klasyfikacji binarnej". \\
+Do testów na klasyfikacji binarnej wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 4.4, "Struktura modelu klasyfikacji binarnej". \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji binarnej}
@@ -297,10 +296,12 @@ Do testów na klasyfikacji binarnej wykorzystałem specjalnie duży model stworz
     \end{tabular}
 \end{table}
 Wszystkie warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Sigmoid". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty binary crossentropy oraz metryki accuracy. \\
-Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
-Parametrem przewidywanym w testach była kolumna "is\_high\_risk", która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
+W pierwszym teście model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
+Parametrem przewidywanym w teście była kolumna "is\_high\_risk", która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
+W drugim teście model ten został wytrenowany na zbiorze danych o chorobach serca przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
+Parametrem przewidywanym w teście była kolumna "target", która jest binarnym wskaźnikiem, czy pacjent ma chorobę serca, czy nie. \\
 Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
-Wyniki testów zostały przedstawione w tabelach 3.6 i 3.7.
+Wyniki pierwszego testu zostały przedstawione w tabelach 4.5 i 4.6. Dodatkowo, dla porównania, wyniki z obu testów zostały przedstawione na wykresie na rysunku 4.2.
 \begin{table}
     \centering
     \caption{Tabela wyników 4-bit}
@@ -308,17 +309,17 @@ Wyniki testów zostały przedstawione w tabelach 3.6 i 3.7.
         \hline
         Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\
         \hline
-        Oryginał & 0,9902 & 0,9982 & 0,9759 & 0,9864 & 713 MiB \\
+        Oryginał & 0,9729 & 0,9422 & 0,9860 & 0,9636 & 713 MiB \\
         \hline
-        Bloki 128 & 0,9866 & 0,9989 & 0,9643 & 0,9813 & 32 MiB \\
+        Bloki 128 & 0,9560 & 0,8963 & 0,9940 & 0,9426 & 32 MiB \\
         \hline
-        Bloki 64 & 0,9901 & 0,9980 & 0,9746 & 0,9862 & 34 MiB \\
+        Bloki 64 & 0,9582 & 0,9016 & 0,9934 & 0,9453 & 34 MiB \\
         \hline
-        Bloki 32 & 0,9887 & 0,9984 & 0,9703 & 0,9842 & 38 MiB \\
+        Bloki 32 & 0,9619 & 0,9110 & 0,9922 & 0,9499 & 38 MiB \\
         \hline
-        Bloki 16 & 0,3615 & 0,3623 & 0,9934 & 0,5310 & 45 MiB \\
+        Bloki 16 & 0,9663 & 0,9240 & 0,9887 & 0,9553 & 45 MiB \\
         \hline
-        Bloki 8 & 0,9922 & 0,9913 & 0,9872 & 0,9893 & 60 MiB \\
+        Bloki 8 & 0,9628 & 0,9137 & 0,9912 & 0,9509 & 60 MiB \\
         \hline
     \end{tabular}
 \end{table}
@@ -329,25 +330,31 @@ Wyniki testów zostały przedstawione w tabelach 3.6 i 3.7.
         \hline
         Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\
         \hline
-        Oryginał & 0,9902 & 0,9982 & 0,9759 & 0,9864 & 713 MiB \\
+        Oryginał & 0,9729 & 0,9422 & 0,9860 & 0,9636 & 713 MiB \\
         \hline
-        Bloki 128 & 0,9875 & 0,9989 & 0,9666 & 0,9825 & 62 MiB \\
+        Bloki 128 & 0,9558 & 0,8959 & 0,9938 & 0,9423 & 62 MiB \\
         \hline
-        Bloki 64 & 0,9882 & 0,9987 & 0,9688 & 0,9835 & 64 MiB \\
+        Bloki 64 & 0,9578 & 0,9008 & 0,9934 & 0,9448 & 64 MiB \\
         \hline
-        Bloki 32 & 0,9886 & 0,9986 & 0,9699 & 0,9840 & 67 MiB \\
+        Bloki 32 & 0,9581 & 0,9017 & 0,9931 & 0,9452 & 67 MiB \\
         \hline
-        Bloki 16 & 0,9923 & 0,9928 & 0,9858 & 0,9893 & 75 MiB \\
+        Bloki 16 & 0,9598 & 0,9058 & 0,9926 & 0,9472 & 75 MiB \\
         \hline
-        Bloki 8 & 0,9919 & 0,9951 & 0,9824 & 0,9887 & 90 MiB \\
+        Bloki 8 & 0,9594 & 0,9048 & 0,9927 & 0,9467 & 90 MiB \\
         \hline
     \end{tabular}
 \end{table}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{test1+2_classifier.png}
+    \caption{Porównanie parametru accuracy na wykresie dla klasyfikacji binarnej na dwóch różnych zestawach danych}
+    \label{fig:binary_classification_results}
+\end{figure}
 
 Wyniki pokazują bardzo dobrą jakość względem oryginału dla wszystkich konfiguracji, z wyjątkiem wariantu 4-bitowego z rozmiarem bloku 16, który z nieznanego powodu osiąga znacznie gorsze wyniki. \\
 
 \subsection{Testy na klasyfikacji wieloklasowej audio}
-Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 3.8, "Struktura modelu klasyfikacji wieloklasowej audio". \\
+Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 4.7, "Struktura modelu klasyfikacji wieloklasowej audio". \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji wieloklasowej audio}
@@ -411,7 +418,7 @@ Warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która kor
 Model ten został wytrenowany na zbiorze danych słów audio przez 10 epok z wykorzystaniem 10\% danych jako zbioru testowego i 10\% jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach było wypowiadane słowo z dostępnych w zbiorze słów. \\
 Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
-Wyniki testów zostały przedstawione w tabelach 3.9 i 3.10.
+Wyniki testów zostały przedstawione w tabelach 4.8 i 4.9. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku 4.3.
 \begin{table}
     \centering
     \caption{Tabela wyników 4-bit}
@@ -454,11 +461,17 @@ Wyniki testów zostały przedstawione w tabelach 3.9 i 3.10.
         \hline
     \end{tabular}
 \end{table}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{test_conv1d.png}
+    \caption{Porównanie parametru accuracy na wykresie dla klasyfikacji wieloklasowej audio}
+    \label{fig:audio_classification_results}
+\end{figure}
 
-Wyniki pokazują, że wariant 4-bitowy nie radzi sobie dobrze z kwantyzacją tego modelu, osiągając wyniki poniżej 50\% w większości metryk dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie znacznie lepiej, osiągając wyniki bliskie oryginału dla prawie wszystkich rozmiarów bloków, z wyjątkiem lekkiego spadku na rozmiarze bloku 64. \\
+Wyniki pokazują, że wariant 4-bitowy nie radzi sobie dobrze z kwantyzacją tego modelu, osiągając wyniki poniżej 50\% w większości metryk dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie znacznie lepiej, osiągając wyniki bliskie oryginału dla prawie wszystkich rozmiarów bloków. \\
 
 \subsection{Testy na klasyfikacji wieloklasowej obrazów}
-Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 3.11, "Struktura modelu klasyfikacji wieloklasowej obrazów". \\
+Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 4.10, "Struktura modelu klasyfikacji wieloklasowej obrazów". \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji wieloklasowej obrazów}
@@ -546,7 +559,7 @@ Warstwy korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta 
 Model ten został wytrenowany na zbiorze danych obrazów ziół przez 45 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach była klasa obrazu, czyli rodzaj zioła. \\
 Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
-Wyniki testów zostały przedstawione w tabelach 3.12 i 3.13.
+Wyniki testów zostały przedstawione w tabelach 4.11 i 4.12. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku 4.4.
 \begin{table}
     \centering
     \caption{Tabela wyników 4-bit}
@@ -589,6 +602,33 @@ Wyniki testów zostały przedstawione w tabelach 3.12 i 3.13.
         \hline
     \end{tabular}
 \end{table}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{test_conv2d.png}
+    \caption{Porównanie parametru accuracy na wykresie dla klasyfikacji wieloklasowej obrazów}
+    \label{fig:image_classification_results}
+\end{figure}
 
 Wyniki pokazują, że wariant 4-bitowy nie radzi sobie w ogóle z kwantyzacją tego modelu, osiągając wyniki bliskie 0\% we wszystkich metrykach dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie bardzo dobrze, osiągając wyniki bliskie oryginału dla wszystkich rozmiarów bloków. \\
-Należy zauważyć, że te testy było o tyle inne i trudniejsze niż poprzednie, że występowało tu aż 91 klas, oraz że sprawność modelu według metryk była znacznie mniejsza niż w poprzednich testach. \\
+Należy zauważyć, że te testy były o tyle inne i trudniejsze niż poprzednie, że występowało tu aż 91 klas, oraz że sprawność modelu według metryk była znacznie mniejsza niż w poprzednich testach. \\
+
+\subsection{Czasy kwantyzacji i dekwantyzacji}
+Przeprowadzając testy zbierałem też czasy kwantyzacji i dekwantyzacji dla wszystkich testowanych modeli. Wyniki zostały przedstawione w tabeli 4.13. Tabela przedstawia również porównanie czasów dla operacji wykonanych w czystym kodzie Python oraz z wykorzystaniem kerneli CUDA.\\
+Czasy zostały zebrane poprzez zapisanie czasu rozpoczęcia i czasu zakończenia operacji oraz obliczenie różnicy między nimi. Do pobrania czasu korzystałem z polecenia "time.perf\_counter()" z biblioteki "time" w Pythonie.
+\begin{table}[htbp]
+	\centering
+    \caption{Tabela porównania czasów}
+	\begin{tabular}{|c|c|c|c|c|}
+		\hline
+		Wersja & Średni czas kwantyzacji (Python) & Średni czas dekwantyzacji (Python) & Średni czas kwantyzacji (CUDA) & Średni czas dekwantyzacji (CUDA) \\
+		\hline
+		Regresja & 50 s & 260 s & $\sim$ 0 s & $\sim$ 5 s \\
+		\hline
+		Kl. binarna & 55 s & 270 s & $\sim$ 0 s & $\sim$ 5 s \\
+        \hline
+        Kl. audio & 90 s & 320 s & $\sim$ 2 s & $\sim$ 10 s \\
+        \hline
+        Kl. obrazów & 100 s & 360 s & $\sim$ 5 s & $\sim$ 15 s \\
+		\hline
+	\end{tabular}
+\end{table}
