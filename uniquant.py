@@ -1,4 +1,68 @@
 ### Uni-Quant Library ###
+import torch
+import os
+from torch.utils.cpp_extension import load_inline
+
+_quant_module = None
+_dequant_module = None
+
+def _get_quant_module():
+    """Initializes and returns the quantization module (compiled once)."""
+    global _quant_module
+    if _quant_module is None:
+        os.environ['CUDA_LAUNCH_BLOCKING']='1'
+        
+        if not os.path.exists('qkernel.cpp'):
+             raise FileNotFoundError("qkernel.cpp not found. Ensure CUDA kernel files are present.")
+        
+        with open('qkernel.cpp', 'r') as f:
+            cuda_src = f.read()
+            
+        cpp_src = "torch::Tensor quantize_pack_2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+        "torch::Tensor quantize_pack_3d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+        "torch::Tensor quantize_pack_4d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+        "torch::Tensor quantize_pack_1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);"
+        
+        print("Compiling Quantization Kernel (this happens once)...")
+        _quant_module = load_inline(
+            cuda_sources=[cuda_src], 
+            cpp_sources=[cpp_src], 
+            functions=['quantize_pack_2d', 'quantize_pack_3d', 'quantize_pack_4d', 'quantize_pack_1d'],
+            extra_cuda_cflags=[], 
+            verbose=False, 
+            name="quant_ext"
+        )
+    return _quant_module
+
+def _get_dequant_module():
+    """Initializes and returns the dequantization module (compiled once)."""
+    global _dequant_module
+    if _dequant_module is None:
+        os.environ['CUDA_LAUNCH_BLOCKING']='1'
+        
+        if not os.path.exists('dkernel.cpp'):
+             raise FileNotFoundError("dkernel.cpp not found. Ensure CUDA kernel files are present.")
+
+        with open('dkernel.cpp', 'r') as f:
+            cuda_src = f.read()
+            
+        cpp_src = "std::vector<torch::Tensor> dequantize_dense_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+        "std::vector<torch::Tensor> dequantize_conv1d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+        "std::vector<torch::Tensor> dequantize_conv2d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t d4, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+        "std::vector<torch::Tensor> dequantize_gru_hex(torch::Tensor hex_cpu, int64_t d1, int64_t units, int64_t biases, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+        "std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+        "std::vector<torch::Tensor> dequantize_batchnorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);"
+        
+        print("Compiling Dequantization Kernel (this happens once)...")
+        _dequant_module = load_inline(
+            cuda_sources=[cuda_src], 
+            cpp_sources=[cpp_src], 
+            functions=['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_gru_hex', 'dequantize_layernorm_hex', 'dequantize_batchnorm_hex'],
+            extra_cuda_cflags=[], 
+            verbose=False, 
+            name="dequant_ext"
+        )
+    return _dequant_module
 
 def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack_size:int = 32, quant_size:int = 4, overwrite:bool = False):
 	
@@ -68,21 +132,7 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 		json_file.write(('{"pack_size": "' + str(pack_size) + '", "quant_size": "' + str(quant_size) + '"}').encode('utf-8'))
 
 	### CUDA ###
-	import torch, os
-	from torch.utils.cpp_extension import load_inline
-	os.environ['CUDA_LAUNCH_BLOCKING']='1'
-	def load_cuda(cuda_src, cpp_src, funcs, opt=False, verbose=False):
-		return load_inline(cuda_sources=[cuda_src], cpp_sources=[cpp_src], functions=funcs,
-						extra_cuda_cflags=["-O2"] if opt else [], verbose=verbose, name="inline_ext")
-	with open('qkernel.cpp', 'r') as f:
-		cuda_src = f.read()
-	cpp_src = "torch::Tensor quantize_pack_2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
-	"torch::Tensor quantize_pack_3d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
-	"torch::Tensor quantize_pack_4d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
-	"torch::Tensor quantize_pack_1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);"
-	module = load_cuda(cuda_src, cpp_src,
-					['quantize_pack_2d', 'quantize_pack_3d', 'quantize_pack_4d', 'quantize_pack_1d'],
-					verbose=True)
+	module = _get_quant_module()
 
 	### Quantizing ###
 	with output.open("quant.bin", 'w') as f:
@@ -165,23 +215,7 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 		bin_data = q.read('quant.bin').hex()
 
 	### CUDA ###
-	import torch, os
-	from torch.utils.cpp_extension import load_inline
-	os.environ['CUDA_LAUNCH_BLOCKING']='1'
-	def load_cuda(cuda_src, cpp_src, funcs, opt=False, verbose=False):
-		return load_inline(cuda_sources=[cuda_src], cpp_sources=[cpp_src], functions=funcs,
-						extra_cuda_cflags=["-O2"] if opt else [], verbose=verbose, name="inline_ext")
-	with open('dkernel.cpp', 'r') as f:
-		cuda_src = f.read()
-	cpp_src = "std::vector<torch::Tensor> dequantize_dense_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-	"std::vector<torch::Tensor> dequantize_conv1d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-	"std::vector<torch::Tensor> dequantize_conv2d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t d4, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-	"std::vector<torch::Tensor> dequantize_gru_hex(torch::Tensor hex_cpu, int64_t d1, int64_t units, int64_t biases, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-	"std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-	"std::vector<torch::Tensor> dequantize_batchnorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);"
-	module = load_cuda(cuda_src, cpp_src,
-					['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_gru_hex', 'dequantize_layernorm_hex', 'dequantize_batchnorm_hex'],
-					verbose=True)
+	module = _get_dequant_module()
 
 	### Dequantizing ###
 	pack_size = int(quant_config['pack_size'])
