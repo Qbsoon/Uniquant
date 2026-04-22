@@ -7,62 +7,62 @@ _quant_module = None
 _dequant_module = None
 
 def _get_quant_module():
-    """Initializes and returns the quantization module (compiled once)."""
-    global _quant_module
-    if _quant_module is None:
-        os.environ['CUDA_LAUNCH_BLOCKING']='1'
-        
-        if not os.path.exists('qkernel.cpp'):
-             raise FileNotFoundError("qkernel.cpp not found. Ensure CUDA kernel files are present.")
-        
-        with open('qkernel.cpp', 'r') as f:
-            cuda_src = f.read()
-            
-        cpp_src = "torch::Tensor quantize_pack_2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
-        "torch::Tensor quantize_pack_3d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
-        "torch::Tensor quantize_pack_4d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
-        "torch::Tensor quantize_pack_1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);"
-        
-        print("Compiling Quantization Kernel (this happens once)...")
-        _quant_module = load_inline(
-            cuda_sources=[cuda_src], 
-            cpp_sources=[cpp_src], 
-            functions=['quantize_pack_2d', 'quantize_pack_3d', 'quantize_pack_4d', 'quantize_pack_1d'],
-            extra_cuda_cflags=[], 
-            verbose=False, 
-            name="quant_ext"
-        )
-    return _quant_module
+	"""Initializes and returns the quantization module (compiled once)."""
+	global _quant_module
+	if _quant_module is None:
+		os.environ['CUDA_LAUNCH_BLOCKING']='1'
+		
+		if not os.path.exists('qkernel.cpp'):
+			 raise FileNotFoundError("qkernel.cpp not found. Ensure CUDA kernel files are present.")
+		
+		with open('qkernel.cpp', 'r') as f:
+			cuda_src = f.read()
+			
+		cpp_src = "torch::Tensor quantize_pack_2d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+		"torch::Tensor quantize_pack_3d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+		"torch::Tensor quantize_pack_4d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);" \
+		"torch::Tensor quantize_pack_1d(torch::Tensor w_cpu, int64_t pack_size, int quant_size);"
+		
+		print("Compiling Quantization Kernel (this happens once)...")
+		_quant_module = load_inline(
+			cuda_sources=[cuda_src], 
+			cpp_sources=[cpp_src], 
+			functions=['quantize_pack_2d', 'quantize_pack_3d', 'quantize_pack_4d', 'quantize_pack_1d'],
+			extra_cuda_cflags=[], 
+			verbose=False, 
+			name="quant_ext"
+		)
+	return _quant_module
 
 def _get_dequant_module():
-    """Initializes and returns the dequantization module (compiled once)."""
-    global _dequant_module
-    if _dequant_module is None:
-        os.environ['CUDA_LAUNCH_BLOCKING']='1'
-        
-        if not os.path.exists('dkernel.cpp'):
-             raise FileNotFoundError("dkernel.cpp not found. Ensure CUDA kernel files are present.")
+	"""Initializes and returns the dequantization module (compiled once)."""
+	global _dequant_module
+	if _dequant_module is None:
+		os.environ['CUDA_LAUNCH_BLOCKING']='1'
+		
+		if not os.path.exists('dkernel.cpp'):
+			 raise FileNotFoundError("dkernel.cpp not found. Ensure CUDA kernel files are present.")
 
-        with open('dkernel.cpp', 'r') as f:
-            cuda_src = f.read()
-            
-        cpp_src = "std::vector<torch::Tensor> dequantize_dense_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-        "std::vector<torch::Tensor> dequantize_conv1d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-        "std::vector<torch::Tensor> dequantize_conv2d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t d4, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-        "std::vector<torch::Tensor> dequantize_gru_hex(torch::Tensor hex_cpu, int64_t d1, int64_t units, int64_t biases, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-        "std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
-        "std::vector<torch::Tensor> dequantize_batchnorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);"
-        
-        print("Compiling Dequantization Kernel (this happens once)...")
-        _dequant_module = load_inline(
-            cuda_sources=[cuda_src], 
-            cpp_sources=[cpp_src], 
-            functions=['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_gru_hex', 'dequantize_layernorm_hex', 'dequantize_batchnorm_hex'],
-            extra_cuda_cflags=[], 
-            verbose=False, 
-            name="dequant_ext"
-        )
-    return _dequant_module
+		with open('dkernel.cpp', 'r') as f:
+			cuda_src = f.read()
+			
+		cpp_src = "std::vector<torch::Tensor> dequantize_dense_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+		"std::vector<torch::Tensor> dequantize_conv1d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+		"std::vector<torch::Tensor> dequantize_conv2d_hex(torch::Tensor hex_cpu, int64_t d1, int64_t d2, int64_t d3, int64_t d4, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+		"std::vector<torch::Tensor> dequantize_gru_hex(torch::Tensor hex_cpu, int64_t d1, int64_t units, int64_t biases, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+		"std::vector<torch::Tensor> dequantize_layernorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);" \
+		"std::vector<torch::Tensor> dequantize_batchnorm_hex(torch::Tensor hex_cpu, int64_t d1, int64_t pack_size, int quant_size, bool balanced, bool literal);"
+		
+		print("Compiling Dequantization Kernel (this happens once)...")
+		_dequant_module = load_inline(
+			cuda_sources=[cuda_src], 
+			cpp_sources=[cpp_src], 
+			functions=['dequantize_dense_hex', 'dequantize_conv1d_hex', 'dequantize_conv2d_hex', 'dequantize_gru_hex', 'dequantize_layernorm_hex', 'dequantize_batchnorm_hex'],
+			extra_cuda_cflags=[], 
+			verbose=False, 
+			name="dequant_ext"
+		)
+	return _dequant_module
 
 def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack_size:int = 32, quant_size:int = 4, overwrite:bool = False):
 	
@@ -90,11 +90,8 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 	from os import open as os_open, dup2, O_WRONLY, close
 	#devnull = os_open('/dev/null', O_WRONLY); dup2(devnull, 1); dup2(devnull, 2)
 
-	import tensorflow as tf
 	from tqdm.auto import tqdm
 	import numpy as np
-	import struct
-	import ctypes
 	from pathlib import Path
 	import zipfile
 
@@ -106,10 +103,30 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 			print(f'Quant file "{quant_name}" already exists in "{quant_directory}". If you want to replace it, re-run the function with "overwrite" parameter set to "True".')
 			return
 
+	ext_path = Path(model_path)
+	ext = ext_path.suffix.lower()
+	source = None
+	if ext in {'.keras', '.h5', '.hdf5'}:
+		source = "tf"
+	elif ext in {'.json', '.ubj', '.bin', '.xgb'}:
+		source = "xgb"
+	else:
+		print(f'Unrecognized model extension "{ext}".')
+		return
+
 	### Model loading ###
 	#devnull = os_open('/dev/null', O_WRONLY); dup2(devnull, 1); dup2(devnull, 2)
 
-	model = tf.keras.models.load_model(model_path)
+	model = None
+	if source == "tf":
+		import tensorflow as tf
+		import struct
+		import ctypes
+		model = tf.keras.models.load_model(path = Path(model_path))
+	elif source == "xgb":
+		import pickle
+		import json
+		model = json.load(open(model_path))
 
 	#close(devnull)
 
@@ -124,63 +141,82 @@ def quantize(model_path:str, quant_directory:str = "", quant_name:str = "", pack
 	output = zipfile.ZipFile(Path(quant_directory) / (quant_name + ".uniq"), 'w')
 
 	### Config export ###
-	json = model.to_json()
-	with output.open("model.json", 'w') as json_file:
-		json_file.write(json.encode('utf-8'))
+	if source == "tf":
+		json = model.to_json()
+		with output.open("model.json", 'w') as json_file:
+			json_file.write(json.encode('utf-8'))
+		
+		### CUDA ###
+		module = _get_quant_module()
 
 	with output.open("quant.json", 'w') as json_file:
-		json_file.write(('{"pack_size": "' + str(pack_size) + '", "quant_size": "' + str(quant_size) + '"}').encode('utf-8'))
-
-	### CUDA ###
-	module = _get_quant_module()
+		json_file.write(('{"pack_size": "' + str(pack_size) + '", "quant_size": "' + str(quant_size) + '", "source": "' + source + '"}').encode('utf-8'))
 
 	### Quantizing ###
 	with output.open("quant.bin", 'w') as f:
-		for layer in tqdm(model.layers, desc="Quantizing weights", unit="layer", miniters=1, mininterval=0):
-			for weight in layer.weights:
-				w = weight.numpy()
-				if weight.ndim == 2:
-					if w.shape[1] >= pack_size:
-						out_bytes = module.quantize_pack_2d(torch.from_numpy(w), pack_size, quant_size)
-						f.write(out_bytes.numpy().tobytes())
+		if source == "tf":
+			for layer in tqdm(model.layers, desc="Quantizing weights", unit="layer", miniters=1, mininterval=0):
+				for weight in layer.weights:
+					w = weight.numpy()
+					if weight.ndim == 2:
+						if w.shape[1] >= pack_size:
+							out_bytes = module.quantize_pack_2d(torch.from_numpy(w), pack_size, quant_size)
+							f.write(out_bytes.numpy().tobytes())
+						else:
+							for i in range(w.shape[0]):
+								for j in range(0, w.shape[1], pack_size):
+									w_block = w[i][j:j+pack_size]
+									for k in w_block:
+										f.write(struct.pack('>f', k))
+					elif weight.ndim == 3:
+						if w.shape[2] >= pack_size:
+							out_bytes = module.quantize_pack_3d(torch.from_numpy(w), pack_size, quant_size)
+							f.write(out_bytes.numpy().tobytes())
+						else:
+							for i in range(w.shape[0]):
+								for j in range(w.shape[1]):
+									for k in range(0, w.shape[2], pack_size):
+										w_block = w[i][j][k:k+pack_size]
+										for l in w_block:
+											f.write(struct.pack('>f', l))
+					elif weight.ndim == 4:
+						if w.shape[3] >= pack_size:
+							out_bytes = module.quantize_pack_4d(torch.from_numpy(w), pack_size, quant_size)
+							f.write(out_bytes.numpy().tobytes())
+						else:
+							for i in range(w.shape[0]):
+								for j in range(w.shape[1]):
+									for k in range(w.shape[2]):
+										for l in range(0, w.shape[3], pack_size):
+											w_block = w[i][j][k][l:l+pack_size]
+											for m in w_block:
+												f.write(struct.pack('>f', m))
 					else:
-						for i in range(w.shape[0]):
-							for j in range(0, w.shape[1], pack_size):
-								w_block = w[i][j:j+pack_size]
-								for k in w_block:
-									f.write(struct.pack('>f', k))
-				elif weight.ndim == 3:
-					if w.shape[2] >= pack_size:
-						out_bytes = module.quantize_pack_3d(torch.from_numpy(w), pack_size, quant_size)
-						f.write(out_bytes.numpy().tobytes())
-					else:
-						for i in range(w.shape[0]):
-							for j in range(w.shape[1]):
-								for k in range(0, w.shape[2], pack_size):
-									w_block = w[i][j][k:k+pack_size]
-									for l in w_block:
-										f.write(struct.pack('>f', l))
-				elif weight.ndim == 4:
-					if w.shape[3] >= pack_size:
-						out_bytes = module.quantize_pack_4d(torch.from_numpy(w), pack_size, quant_size)
-						f.write(out_bytes.numpy().tobytes())
-					else:
-						for i in range(w.shape[0]):
-							for j in range(w.shape[1]):
-								for k in range(w.shape[2]):
-									for l in range(0, w.shape[3], pack_size):
-										w_block = w[i][j][k][l:l+pack_size]
-										for m in w_block:
-											f.write(struct.pack('>f', m))
-				else:
-					if w.shape[0] >= pack_size:
-						out_bytes = module.quantize_pack_1d(torch.from_numpy(w).reshape(-1), pack_size, quant_size)
-						f.write(out_bytes.numpy().tobytes())
-					else:
-						for i in range(0, w.shape[0], pack_size):
-							w_block = w[i:i+pack_size]
-							for j in w_block:
-								f.write(struct.pack('>f', j))
+						if w.shape[0] >= pack_size:
+							out_bytes = module.quantize_pack_1d(torch.from_numpy(w).reshape(-1), pack_size, quant_size)
+							f.write(out_bytes.numpy().tobytes())
+						else:
+							for i in range(0, w.shape[0], pack_size):
+								w_block = w[i:i+pack_size]
+								for j in w_block:
+									f.write(struct.pack('>f', j))
+		elif source == "xgb":
+			def qua_global(nums):
+				nums = np.array(nums, dtype=np.float32)
+				max_abs = np.max(np.abs(nums))
+				if max_abs == 0:
+					return nums.tolist(), 1.0
+
+				factor = (2 ** (quant_size-1)) - 1
+				scale = max_abs / factor
+				nums_q = np.clip(np.round(nums / scale), -(factor), factor).astype(np.int8)
+				return nums_q.tolist(), scale
+
+			for tree in tqdm(model["learner"]["gradient_booster"]["model"]["trees"], desc="Quantizing trees", unit="tree", miniters=1, mininterval=0):
+				tree['base_weights'], tree['base_scale'] = qua_global(tree['base_weights'])
+				if 'leaf_values' in tree:
+					tree['leaf_values'], tree['leaf_scale'] = qua_global(tree['leaf_values'])
+			pickle.dump(model, f)
 	
 	print('Quantizing done. Quant saved to: '+str(Path(quant_directory) / (quant_name + ".uniq")))
 
@@ -200,213 +236,240 @@ def dequantize(quant_path:str, literal:bool = False, balanced:bool = True):
 	
 	import json
 	import numpy as np
-	import struct
 	from tqdm.auto import tqdm
-	from keras.saving import deserialize_keras_object
 	import json
 	import zipfile
 
 	#close(devnull)
 
 	### Quant loading ###
+	bin_data = None
 	with zipfile.ZipFile(quant_path, 'r') as q:
-		config_data = json.loads(q.read('model.json').decode())
 		quant_config = json.loads(q.read('quant.json').decode())
-		bin_data = q.read('quant.bin').hex()
+		source = quant_config['source']
+		if source == "tf":
+			from keras.saving import deserialize_keras_object
+			import struct
+			config_data = json.loads(q.read('model.json').decode())
+			bin_data = q.read('quant.bin').hex()
+		elif source == "xgb":
+			import xgboost as xgb
+			import pickle
+			import io
+			bin_data = pickle.loads(q.read('quant.bin'))
 
-	### CUDA ###
-	module = _get_dequant_module()
+	quant_size = int(quant_config['quant_size'])
 
 	### Dequantizing ###
-	pack_size = int(quant_config['pack_size'])
-	quant_size = int(quant_config['quant_size'])
-	hpn = int(quant_size / 4) #Hex Per Number
-	weights = {}
-	ptr = 0
-	for layer in tqdm(config_data['config']['layers'], desc="Dequantizing weights", unit="layer", miniters=1, mininterval=0):
-		layer_data = []
-		if layer['class_name'] == 'InputLayer':
-			continue
-		if layer['class_name'] == 'Dense':
-			d1 = layer['build_config']['input_shape'][1]
-			d2 = layer['config']['units']
-			if d2 >= pack_size:
-				layer_data = bin_data[ptr:ptr+((((d1+1)*(d2//pack_size))*8) if d2>=pack_size else 0)+(8*(d1+1) if d2%pack_size != 0 else 0)+(((d1+1)*(d2+(d2%2 if quant_size==4 else 0)))*hpn)]
-				out_tensors = module.dequantize_dense_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, pack_size, quant_size, balanced, literal)
+	if source == "tf":
+		### CUDA ###
+		module = _get_dequant_module()
 
-				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
-			else:
-				layer_data = bin_data[ptr:ptr+((d1+1)*d2*8)]
-				w = np.empty((d1,d2), dtype=np.float32)
-				for i in range(d1):
-					for j in range(d2):
-						n0_hex = layer_data[(i*d2*8)+(j*8):(i*d2*8)+(j*8)+8]
-						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-						w[i,j] = n0
-				w3 = np.array([])
-				for i in range(d2):
-					n0_hex = layer_data[(d1*d2*8)+(i*8):(d1*d2*8)+(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w3 = np.append(w3, n0)
-				
-				weights[layer['config']['name']] = [w, w3]
+		pack_size = int(quant_config['pack_size'])
+		hpn = int(quant_size / 4) #Hex Per Number
+		weights = {}
+		ptr = 0
+		for layer in tqdm(config_data['config']['layers'], desc="Dequantizing weights", unit="layer", miniters=1, mininterval=0):
+			layer_data = []
+			if layer['class_name'] == 'InputLayer':
+				continue
+			if layer['class_name'] == 'Dense':
+				d1 = layer['build_config']['input_shape'][1]
+				d2 = layer['config']['units']
+				if d2 >= pack_size:
+					layer_data = bin_data[ptr:ptr+((((d1+1)*(d2//pack_size))*8) if d2>=pack_size else 0)+(8*(d1+1) if d2%pack_size != 0 else 0)+(((d1+1)*(d2+(d2%2 if quant_size==4 else 0)))*hpn)]
+					out_tensors = module.dequantize_dense_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, pack_size, quant_size, balanced, literal)
 
-		if layer['class_name'] == 'Conv1D':
-			d1 = layer['config']['kernel_size'][0]
-			format = layer['config'].get('data_format', 'channels_last')
-			if format == 'channels_last':
-				d2 = int(layer['build_config']['input_shape'][2])
-			else:
-				d2 = int(layer['build_config']['input_shape'][1])
-			d3 = layer['config']['filters']
-			if d3 >= pack_size:
-				layer_data = bin_data[ptr:ptr+(((((d1*d2)+1)*(d3//pack_size))*8) if d3>=pack_size else 0)+(8*((d1*d2)+1) if d3%pack_size != 0 else 0)+((((d1*d2)+1)*(d3+(d3%2 if quant_size == 4 else 0)))*hpn)]
-				out_tensors = module.dequantize_conv1d_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, d3, pack_size, quant_size, balanced, literal)
-				
-				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
-			else:
-				layer_data = bin_data[ptr:ptr+(((d1*d2)+1)*d3*8)]
-				w = np.empty((d1,d2,d3), dtype=np.float32)
-				for i in range(d1):
-					for j in range(d2):
-						for k in range(d3):
-							n0_hex = layer_data[(i*d2*d3*8)+(j*d3*8)+(k*8):(i*d2*d3*8)+(j*d3*8)+(k*8)+8]
+					weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
+				else:
+					layer_data = bin_data[ptr:ptr+((d1+1)*d2*8)]
+					w = np.empty((d1,d2), dtype=np.float32)
+					for i in range(d1):
+						for j in range(d2):
+							n0_hex = layer_data[(i*d2*8)+(j*8):(i*d2*8)+(j*8)+8]
 							n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-							w[i,j,k] = n0
-				w4 = np.array([])
-				for i in range(d3):
-					n0_hex = layer_data[(d1*d2*d3*8)+(i*8):(d1*d2*d3*8)+(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w4 = np.append(w4, n0)
-
-				weights[layer['config']['name']] = [w, w4]
-		
-		if layer['class_name'] == 'Conv2D':
-			d1 = layer['config']['kernel_size'][0]
-			d2 = layer['config']['kernel_size'][1]
-			if layer['config'].get('data_format', 'channels_last') == 'channels_last':
-				d3 = layer['build_config']['input_shape'][3]
-			else:
-				d3 = layer['build_config']['input_shape'][1]
-			d4 = layer['config']['filters']
-			if (pack_size == 128):
-				print(layer['config']['name'] + ": "+str(d1)+"x"+str(d2)+"x"+str(d3)+"x"+str(d4))
-			if d4 >= pack_size:
-				layer_data = bin_data[ptr:ptr+(((((d1*d2*d3)+1)*(d4//pack_size))*8) if d4>=pack_size else 0)+(8*((d1*d2*d3)+1) if d4%pack_size != 0 else 0)+((((d1*d2*d3)+1)*(d4+(d4%2 if quant_size == 4 else 0)))*hpn)]
-				out_tensors = module.dequantize_conv2d_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, d3, d4, pack_size, quant_size, balanced, literal)
-
-				if (pack_size == 128):
-					print("kernel shape: " + str(out_tensors[0].shape))
-				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
-			else:
-				layer_data = bin_data[ptr:ptr+(((d1*d2*d3)+1)*d4*8)]
-				w = np.empty((d1,d2,d3,d4), dtype=np.float32)
-				for i in range(d1):
-					for j in range(d2):
-						for k in range(d3):
-							for l in range(d4):
-								n0_hex = layer_data[(i*d2*d3*d4*8)+(j*d3*d4*8)+(k*d4*8)+(l*8):(i*d2*d3*d4*8)+(j*d3*d4*8)+(k*d4*8)+(l*8)+8]
-								n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-								w[i,j,k,l] = n0
-				w5 = np.array([])
-				for i in range(d4):
-					n0_hex = layer_data[(d1*d2*d3*d4*8)+(i*8):(d1*d2*d3*d4*8)+(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w5 = np.append(w5, n0)
-
-				if (pack_size == 128):
-					print("direct shape: " + str(w.shape))
-				weights[layer['config']['name']] = [w, w5]
-		
-		if layer['class_name'] == 'GRU':
-			d1 = layer['build_config']['input_shape'][-1]
-			gates = 3
-			units = layer['config']['units']
-			biases = 2 if layer['config']['reset_after'] else 1
-			d2 = gates * units
-			w = np.array([])
-			batches = d2 // pack_size
-			if d2 >= pack_size:
-				layer_data = bin_data[ptr:ptr+((((d1+units+biases)//(d2*pack_size))*8) if d2>=pack_size else 0)+(8*(d1+units+biases) if d2%pack_size != 0 else 0)+(((d1+units+biases)*(d2+(d2%2 if quant_size == 4 else 0)))*hpn)]
-				out_tensors = module.dequantize_gru_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, units, biases, pack_size, quant_size, balanced, literal)
-
-				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1], out_tensors[2]]
-			else:
-				layer_data = bin_data[ptr:ptr+((d1+units+biases)*d2*8)]
-				w = np.empty((d1+units+biases,d2), dtype=np.float32)
-				for i in range(d1+units+biases):
-					for j in range(d2):
-						n0_hex = layer_data[(i*d2*8)+(j*8):(i*d2*8)+(j*8)+8]
+							w[i,j] = n0
+					w3 = np.array([])
+					for i in range(d2):
+						n0_hex = layer_data[(d1*d2*8)+(i*8):(d1*d2*8)+(i*8)+8]
 						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-						w[i,j] = n0
-				
-				weights[layer['config']['name']] = [w]
+						w3 = np.append(w3, n0)
 
-		if layer['class_name'] == 'LayerNormalization':
-			d1 = layer['build_config']['input_shape'][-1]
-			if (d1 >= pack_size):
-				layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2 if quant_size == 4 else 0))*hpn))*2]
-				out_tensors = module.dequantize_layernorm_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, pack_size, quant_size, balanced, literal)
+					weights[layer['config']['name']] = [w, w3]
 
-				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
-			else:
-				layer_data = bin_data[ptr:ptr+((d1*8)*2)]
+			if layer['class_name'] == 'Conv1D':
+				d1 = layer['config']['kernel_size'][0]
+				format = layer['config'].get('data_format', 'channels_last')
+				if format == 'channels_last':
+					d2 = int(layer['build_config']['input_shape'][2])
+				else:
+					d2 = int(layer['build_config']['input_shape'][1])
+				d3 = layer['config']['filters']
+				if d3 >= pack_size:
+					layer_data = bin_data[ptr:ptr+(((((d1*d2)+1)*(d3//pack_size))*8) if d3>=pack_size else 0)+(8*((d1*d2)+1) if d3%pack_size != 0 else 0)+((((d1*d2)+1)*(d3+(d3%2 if quant_size == 4 else 0)))*hpn)]
+					out_tensors = module.dequantize_conv1d_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, d3, pack_size, quant_size, balanced, literal)
+
+					weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
+				else:
+					layer_data = bin_data[ptr:ptr+(((d1*d2)+1)*d3*8)]
+					w = np.empty((d1,d2,d3), dtype=np.float32)
+					for i in range(d1):
+						for j in range(d2):
+							for k in range(d3):
+								n0_hex = layer_data[(i*d2*d3*8)+(j*d3*8)+(k*8):(i*d2*d3*8)+(j*d3*8)+(k*8)+8]
+								n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+								w[i,j,k] = n0
+					w4 = np.array([])
+					for i in range(d3):
+						n0_hex = layer_data[(d1*d2*d3*8)+(i*8):(d1*d2*d3*8)+(i*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w4 = np.append(w4, n0)
+
+					weights[layer['config']['name']] = [w, w4]
+
+			if layer['class_name'] == 'Conv2D':
+				d1 = layer['config']['kernel_size'][0]
+				d2 = layer['config']['kernel_size'][1]
+				if layer['config'].get('data_format', 'channels_last') == 'channels_last':
+					d3 = layer['build_config']['input_shape'][3]
+				else:
+					d3 = layer['build_config']['input_shape'][1]
+				d4 = layer['config']['filters']
+				if (pack_size == 128):
+					print(layer['config']['name'] + ": "+str(d1)+"x"+str(d2)+"x"+str(d3)+"x"+str(d4))
+				if d4 >= pack_size:
+					layer_data = bin_data[ptr:ptr+(((((d1*d2*d3)+1)*(d4//pack_size))*8) if d4>=pack_size else 0)+(8*((d1*d2*d3)+1) if d4%pack_size != 0 else 0)+((((d1*d2*d3)+1)*(d4+(d4%2 if quant_size == 4 else 0)))*hpn)]
+					out_tensors = module.dequantize_conv2d_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, d2, d3, d4, pack_size, quant_size, balanced, literal)
+
+					if (pack_size == 128):
+						print("kernel shape: " + str(out_tensors[0].shape))
+					weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
+				else:
+					layer_data = bin_data[ptr:ptr+(((d1*d2*d3)+1)*d4*8)]
+					w = np.empty((d1,d2,d3,d4), dtype=np.float32)
+					for i in range(d1):
+						for j in range(d2):
+							for k in range(d3):
+								for l in range(d4):
+									n0_hex = layer_data[(i*d2*d3*d4*8)+(j*d3*d4*8)+(k*d4*8)+(l*8):(i*d2*d3*d4*8)+(j*d3*d4*8)+(k*d4*8)+(l*8)+8]
+									n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+									w[i,j,k,l] = n0
+					w5 = np.array([])
+					for i in range(d4):
+						n0_hex = layer_data[(d1*d2*d3*d4*8)+(i*8):(d1*d2*d3*d4*8)+(i*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w5 = np.append(w5, n0)
+
+					if (pack_size == 128):
+						print("direct shape: " + str(w.shape))
+					weights[layer['config']['name']] = [w, w5]
+
+			if layer['class_name'] == 'GRU':
+				d1 = layer['build_config']['input_shape'][-1]
+				gates = 3
+				units = layer['config']['units']
+				biases = 2 if layer['config']['reset_after'] else 1
+				d2 = gates * units
 				w = np.array([])
-				for i in range(d1):
-					n0_hex = layer_data[(i*8):(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w = np.append(w, n0)
-				w2 = np.array([])
-				for i in range(d1):
-					n0_hex = layer_data[(d1*8)+(i*8):(d1*8)+(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w2 = np.append(w2, n0)
-				
-				weights[layer['config']['name']] = [w, w2]
+				batches = d2 // pack_size
+				if d2 >= pack_size:
+					layer_data = bin_data[ptr:ptr+((((d1+units+biases)//(d2*pack_size))*8) if d2>=pack_size else 0)+(8*(d1+units+biases) if d2%pack_size != 0 else 0)+(((d1+units+biases)*(d2+(d2%2 if quant_size == 4 else 0)))*hpn)]
+					out_tensors = module.dequantize_gru_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, units, biases, pack_size, quant_size, balanced, literal)
 
-		if layer['class_name'] == 'BatchNormalization':
-			d1 = layer['build_config']['input_shape'][-1]
-			if (d1 >= pack_size):
-				layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2 if quant_size == 4 else 0))*hpn))*4]
-				out_tensors = module.dequantize_batchnorm_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, pack_size, quant_size, balanced, literal)
+					weights[layer['config']['name']] = [out_tensors[0], out_tensors[1], out_tensors[2]]
+				else:
+					layer_data = bin_data[ptr:ptr+((d1+units+biases)*d2*8)]
+					w = np.empty((d1+units+biases,d2), dtype=np.float32)
+					for i in range(d1+units+biases):
+						for j in range(d2):
+							n0_hex = layer_data[(i*d2*8)+(j*8):(i*d2*8)+(j*8)+8]
+							n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+							w[i,j] = n0
 
-				weights[layer['config']['name']] = [out_tensors[0], out_tensors[1], out_tensors[2], out_tensors[3]]
-			else:
-				layer_data = bin_data[ptr:ptr+((d1*8)*4)]
-				w = np.array([])
-				for i in range(d1):
-					n0_hex = layer_data[(i*8):(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w = np.append(w, n0)
-				w2 = np.array([])
-				for i in range(d1):
-					n0_hex = layer_data[(d1*8)+(i*8):(d1*8)+(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w2 = np.append(w2, n0)
-				w3 = np.array([])
-				for i in range(d1):
-					n0_hex = layer_data[(d1*16)+(i*8):(d1*16)+(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w3 = np.append(w3, n0)
-				w4 = np.array([])
-				for i in range(d1):
-					n0_hex = layer_data[(d1*24)+(i*8):(d1*24)+(i*8)+8]
-					n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
-					w4 = np.append(w4, n0)
-				
-				weights[layer['config']['name']] = [w, w2, w3, w4]
+					weights[layer['config']['name']] = [w]
 
-		ptr += len(layer_data)
+			if layer['class_name'] == 'LayerNormalization':
+				d1 = layer['build_config']['input_shape'][-1]
+				if (d1 >= pack_size):
+					layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2 if quant_size == 4 else 0))*hpn))*2]
+					out_tensors = module.dequantize_layernorm_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, pack_size, quant_size, balanced, literal)
 
-	#devnull = os_open('/dev/null', O_WRONLY); dup2(devnull, 1); dup2(devnull, 2)
+					weights[layer['config']['name']] = [out_tensors[0], out_tensors[1]]
+				else:
+					layer_data = bin_data[ptr:ptr+((d1*8)*2)]
+					w = np.array([])
+					for i in range(d1):
+						n0_hex = layer_data[(i*8):(i*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w = np.append(w, n0)
+					w2 = np.array([])
+					for i in range(d1):
+						n0_hex = layer_data[(d1*8)+(i*8):(d1*8)+(i*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w2 = np.append(w2, n0)
+
+					weights[layer['config']['name']] = [w, w2]
+
+			if layer['class_name'] == 'BatchNormalization':
+				d1 = layer['build_config']['input_shape'][-1]
+				if (d1 >= pack_size):
+					layer_data = bin_data[ptr:ptr+(((d1//pack_size)*8)+(8 if d1%pack_size != 0 else 0)+((d1+(d1%2 if quant_size == 4 else 0))*hpn))*4]
+					out_tensors = module.dequantize_batchnorm_hex(torch.tensor(list(layer_data.encode('ascii')), dtype=torch.uint8), d1, pack_size, quant_size, balanced, literal)
+
+					weights[layer['config']['name']] = [out_tensors[0], out_tensors[1], out_tensors[2], out_tensors[3]]
+				else:
+					layer_data = bin_data[ptr:ptr+((d1*8)*4)]
+					w = np.array([])
+					for i in range(d1):
+						n0_hex = layer_data[(i*8):(i*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w = np.append(w, n0)
+					w2 = np.array([])
+					for i in range(d1):
+						n0_hex = layer_data[(d1*8)+(i*8):(d1*8)+(i*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w2 = np.append(w2, n0)
+					w3 = np.array([])
+					for i in range(d1):
+						n0_hex = layer_data[(d1*16)+(i*8):(d1*16)+(i*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w3 = np.append(w3, n0)
+					w4 = np.array([])
+					for i in range(d1):
+						n0_hex = layer_data[(d1*24)+(i*8):(d1*24)+(i*8)+8]
+						n0 = struct.unpack('>f', bytes.fromhex(n0_hex))[0]
+						w4 = np.append(w4, n0)
+
+					weights[layer['config']['name']] = [w, w2, w3, w4]
+
+			ptr += len(layer_data)
+
+		#devnull = os_open('/dev/null', O_WRONLY); dup2(devnull, 1); dup2(devnull, 2)
+
+		### Setting weights ###
+		model = deserialize_keras_object(config_data)
+		for layer in model.layers:
+			if layer.name in weights:
+				layer.set_weights(weights[layer.name])
+
+		#close(devnull)
+	elif source == "xgb":
+		def dequa_global(quantized_nums, scale):
+			return (np.array(quantized_nums, dtype=np.float32) * scale).tolist()
 	
-	### Setting weights ###
-	model = deserialize_keras_object(config_data)
-	for layer in model.layers:
-		if layer.name in weights:
-			layer.set_weights(weights[layer.name])
-
-	#close(devnull)
+		for tree in tqdm(bin_data["learner"]["gradient_booster"]["model"]["trees"], desc="Dequantizing trees", unit="tree", miniters=1, mininterval=0):
+			if 'base_scale' in tree:
+				tree["base_weights"] = dequa_global(tree["base_weights"], tree["base_scale"])
+				del tree["base_scale"]
+		
+			if 'leaf_scale' in tree:
+				tree['leaf_values'] = dequa_global(tree['leaf_values'], tree['leaf_scale'])
+				del tree["leaf_scale"]
+		
+		model_str = json.dumps(bin_data)
+		model_bytes = model_str.encode('utf-8')
+		model = xgb.XGBClassifier()
+		model.load_model(bytearray(model_bytes))
 	
 	print('Dequantizing done. Model returned from function.')
 	return model

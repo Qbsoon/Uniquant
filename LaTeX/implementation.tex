@@ -60,10 +60,9 @@ Tabela 4.13 przedstawia porównanie średnich czasów kwantyzacji i dekwantyzacj
 \section{Biblioteki i narzędzia kodu kwantyzacji}
 Do implementacji biblioteki \textit{Uniquant} wykorzystałem następujące narzędzia i biblioteki:
 \begin{itemize}
-    \item Python 3.13.11
+    \item Python 3.13.13
     \item Biblioteki Python:
     \begin{itemize}
-        \item TensorFlow
         \item PyTorch - do wczytywania kerneli cuda oraz zamiany macierzy na tensory cuda
         \item NumPy
         \item Tqdm - do wyświetlania pasków postępu podczas procesów kwantyzacji i dekwantyzacji
@@ -85,10 +84,11 @@ Pliki testów znajdują się w repozytorium GitHub.
 \subsection{Biblioteki i narzędzia testów}
 Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji wykorzystałem następujące narzędzia i biblioteki:
 \begin{itemize}
-    \item Python 3.13.11
+    \item Python 3.13.13
     \item Biblioteki Python:
     \begin{itemize}
         \item TensorFlow - do tworzenia modeli i trenowania ich na zbiorze danych
+        \item XGBoost - do tworzenia lasów losowych i trenowania ich na zbiorze danych
         \item NumPy
         \item Scikit-learn - do obliczania metryk precision, recall i f1-score
         \item Pandas - do wczytywania zbioru danych i przygotowywania
@@ -353,8 +353,59 @@ Wyniki pierwszego testu zostały przedstawione w tabelach 4.5 i 4.6. Dodatkowo, 
 
 Wyniki pokazują bardzo dobrą jakość względem oryginału dla wszystkich konfiguracji, z wyjątkiem wariantu 4-bitowego z rozmiarem bloku 16, który z nieznanego powodu osiąga znacznie gorsze wyniki. \\
 
+\subsection{Testy na klasyfikacji lasów losowych}
+Do testów na klasyfikacji lasów losowych wykorzystałem model XGBClassifier z biblioteki XGBoost. Parametry zostały przedstawione na tabeli 4.7, "Struktura modelu klasyfikacji lasów losowych". \\
+\begin{table}[htbp]
+    \centering
+    \caption{Struktura modelu klasyfikacji lasów losowych}
+    \begin{tabular}{|c|c|}
+        \hline
+        Parametr & Wartość \\
+        \hline
+        n\_estimators & 1000 \\
+        \hline
+        max\_depth & 14 \\
+        \hline
+        learning\_rate & 0,05 \\
+        \hline
+        subsample & 0,8 \\
+        \hline
+        colsample\_bytree & 0,8 \\
+        \hline
+        eval\_metric & "logloss" \\
+        \hline
+        tree\_method & "hist" \\
+        \hline
+        random\_state & 86 \\
+        \hline
+    \end{tabular}
+\end{table}
+Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych z wykorzystaniem 20\% danych jako zbioru testowego. \\
+Parametrem przewidywanym w teście była kolumna "is\_high\_risk", która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
+Poza accuracy, testy korzystały też z metryki precision, recall i f1-score.
+Badane były warianty kwantyzacji 4-bitowej i 8-bitowej. \\
+Wyniki testów zostały przedstawione w tabeli 4.8. Ze względu na jednolitość, nie załączam wykresu wyników testów.
+\begin{table}
+    \centering
+    \caption{Tabela wyników}
+    \begin{tabular}{|c|c|c|c|c|c|}
+        \hline
+        Wersja & Accuracy & Precision & Recall & F1-score & Rozmiar \\ 
+        \hline
+        Oryginał & 1.0 & 1.0 & 1.0 & 1.0 & 6.2 MB \\
+        \hline
+        Kwantyzacja 4-bit & 1.0 & 1.0 & 1.0 & 1.0 & 4.4 MB \\
+        \hline
+        Kwantyzacja 8-bit & 1.0 & 1.0 & 1.0 & 1.0 & 4.4 MB \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Wyniki pokazują, że oba warianty kwantyzacji osiągają dokładnie takie same wyniki jak oryginalny model, co jest bardzo dobrym wynikiem. \\
+Rozmiar na obu również udało się zmniejszyć o około 33\%. Oba tryby kwantyzacji zajmują dokładnie tyle samo miejsca, ze względu na inną strukturę modeli XGB, a przez to inną metodę kwantyzacji. \\
+
 \subsection{Testy na klasyfikacji wieloklasowej audio}
-Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 4.7, "Struktura modelu klasyfikacji wieloklasowej audio". \\
+Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 4.9, "Struktura modelu klasyfikacji wieloklasowej audio". \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji wieloklasowej audio}
@@ -418,7 +469,7 @@ Warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która kor
 Model ten został wytrenowany na zbiorze danych słów audio przez 10 epok z wykorzystaniem 10\% danych jako zbioru testowego i 10\% jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach było wypowiadane słowo z dostępnych w zbiorze słów. \\
 Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
-Wyniki testów zostały przedstawione w tabelach 4.8 i 4.9. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku 4.3.
+Wyniki testów zostały przedstawione w tabelach 4.10 i 4.11. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku 4.4.
 \begin{table}
     \centering
     \caption{Tabela wyników 4-bit}
@@ -471,7 +522,7 @@ Wyniki testów zostały przedstawione w tabelach 4.8 i 4.9. Dodatkowo, dla poró
 Wyniki pokazują, że wariant 4-bitowy nie radzi sobie dobrze z kwantyzacją tego modelu, osiągając wyniki poniżej 50\% w większości metryk dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie znacznie lepiej, osiągając wyniki bliskie oryginału dla prawie wszystkich rozmiarów bloków. \\
 
 \subsection{Testy na klasyfikacji wieloklasowej obrazów}
-Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 4.10, "Struktura modelu klasyfikacji wieloklasowej obrazów". \\
+Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli 4.12, "Struktura modelu klasyfikacji wieloklasowej obrazów". \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji wieloklasowej obrazów}
@@ -559,7 +610,7 @@ Warstwy korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta 
 Model ten został wytrenowany na zbiorze danych obrazów ziół przez 45 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach była klasa obrazu, czyli rodzaj zioła. \\
 Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
-Wyniki testów zostały przedstawione w tabelach 4.11 i 4.12. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku 4.4.
+Wyniki testów zostały przedstawione w tabelach 4.13 i 4.14. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku 4.5.
 \begin{table}
     \centering
     \caption{Tabela wyników 4-bit}
@@ -613,7 +664,7 @@ Wyniki pokazują, że wariant 4-bitowy nie radzi sobie w ogóle z kwantyzacją t
 Należy zauważyć, że te testy były o tyle inne i trudniejsze niż poprzednie, że występowało tu aż 91 klas, oraz że sprawność modelu według metryk była znacznie mniejsza niż w poprzednich testach. \\
 
 \subsection{Czasy kwantyzacji i dekwantyzacji}
-Przeprowadzając testy zbierałem też czasy kwantyzacji i dekwantyzacji dla wszystkich testowanych modeli. Wyniki zostały przedstawione w tabeli 4.13. Tabela przedstawia również porównanie czasów dla operacji wykonanych w czystym kodzie Python oraz z wykorzystaniem kerneli CUDA.\\
+Przeprowadzając testy zbierałem też czasy kwantyzacji i dekwantyzacji dla wszystkich testowanych modeli. Wyniki zostały przedstawione w tabeli 4.15. Tabela przedstawia również porównanie czasów dla operacji wykonanych w czystym kodzie Python oraz z wykorzystaniem kerneli CUDA.\\
 Czasy zostały zebrane poprzez zapisanie czasu rozpoczęcia i czasu zakończenia operacji oraz obliczenie różnicy między nimi. Do pobrania czasu korzystałem z polecenia "time.perf\_counter()" z biblioteki "time" w Pythonie.
 \begin{table}[htbp]
 	\centering

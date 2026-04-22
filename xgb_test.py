@@ -1,0 +1,85 @@
+import kagglehub
+path = kagglehub.dataset_download("mohankrishnathalla/medical-insurance-cost-prediction")
+
+import pandas as pd
+data = pd.read_csv(path + "/medical_insurance.csv")
+data.loc[1]
+data.dropna()
+
+results = []
+
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from uniquant import quantize, dequantize, dequantize_save
+from tqdm.auto import tqdm
+import json
+import xgboost as xgb
+import time
+
+X = data.drop('is_high_risk', axis=1)
+y = data['is_high_risk']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=86)
+
+categorical_features = ['sex', 'region', 'urban_rural', 'education', 'marital_status', 'employment_status', 'smoker', 'alcohol_freq', 'plan_type', 'network_tier']
+numerical_features = [col for col in X.columns if col not in categorical_features]
+preprocessor = ColumnTransformer(
+	transformers=[
+		('num', StandardScaler(), numerical_features),
+		('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
+	])
+X_train = preprocessor.fit_transform(X_train)
+X_test = preprocessor.transform(X_test)
+
+model = xgb.XGBClassifier(
+	n_estimators=1000,
+	max_depth=14,
+	learning_rate=0.005,
+	subsample=0.8,
+	colsample_bytree=0.8,
+	eval_metric='logloss',
+	tree_method='hist',
+	use_label_encoder=False,
+	random_state=86,
+)
+
+model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=True)
+
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+print(f"Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}, F1: {f1}")
+results.append({"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1})
+model.save_model("model.json")
+del model
+del X_train
+del y_train
+
+quant_t = [4, 8]
+num_t = [8]
+progress = tqdm(total=len(quant_t)*len(num_t), desc="Tests", unit="test", miniters=1, mininterval=0)
+for quant_size in quant_t:
+	for num in num_t:
+		start = time.perf_counter()
+		quantize("model.json", quant_name='m_xgb'+str(quant_size), overwrite=True, pack_size=num, quant_size = quant_size)
+		qtime = time.perf_counter() - start
+		start = time.perf_counter()
+		model = dequantize('m_xgb'+str(quant_size)+".uniq")
+		dqtime = time.perf_counter() - start
+		y_pred_prob = model.predict(X_test).flatten()
+		y_pred = (y_pred_prob > 0.5).astype(int)
+		accuracy = accuracy_score(y_test, y_pred)
+		precision = precision_score(y_test, y_pred)
+		recall = recall_score(y_test, y_pred)
+		f1 = f1_score(y_test, y_pred)
+		print(f"Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}, F1: {f1}")
+		results.append({"pack_size": num, "accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1, "quant_time": qtime, "dequant_time": dqtime})
+		del model
+		progress.update(1)
+	
+with open(f"test_xgb.json", "w") as f:
+	json.dump(results, f, indent=4)

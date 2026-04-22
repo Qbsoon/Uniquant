@@ -7,3 +7,6 @@ tensorflow==2.20.0
 keras==3.13.2
 kagglehub==1.0.0
 plotly==6.6.0
+scikit-learn==1.8.0
+xgboost==3.2.0
+ninja==1.13.0
