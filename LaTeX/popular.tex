@@ -1,11 +1,9 @@
-\chapter{Popularne metody kwantyzacji modeli}
-
+\section{Wprowadzenie}
 Rozwój dużych modeli językowych (LLM) oraz modeli wizji komputerowej (VLM) doprowadził do sytuacji, w której wdrożenia produkcyjne oraz badania nad architekturami transformerów stały się domeną wyłącznie korporacji dysponujących wydajnymi klastrami obliczeniowymi. Kwantyzacja, polegająca na redukcji precyzji reprezentacji liczb (najczęściej z 32-bitowego formatu zmiennoprzecinkowego do 4- lub 8-bitowych wartości stałoprzecinkowych bądź niestandardowych formatów zmiennoprzecinkowych), stała się kluczowym mechanizmem zwiększającym popularność sztucznej inteligencji. Pozwala ona na drastyczne zmniejszenie zapotrzebowania na przepustowość pamięci oraz pojemność pamięci, przyspieszając wnioskowanie i umożliwiając uruchamianie modeli na sprzęcie konsumenckim.
 
 W niniejszym rozdziale przedstawione zostaną najbardziej rozpowszechnione rozwiązania dziedzinie kwantyzacji. Omówiono zarówno standardy  BitsAndBytes z biblioteki Hugging Face, algorytmy kompresji wag bazujące na analizie błędów (AWQ, GPTQ), nowatorskie formaty plików zoptymalizowane pod heterogeniczne architektury CPU i GPU (GGUF), jak i przełomowe metody mapowania rozkładu wag oparte na transformacjach ortogonalnych (TurboQuant).
 
 \section{BitsAndBytes oraz format NF4}
-\label{sec:bnb}
 
 Choć biblioteka BitsAndBytes (BnB) początkowo funkcjonowała jedynie jako biblioteka w ekosystemie PyTorch, dziś nazwa ta utożsamiana jest z de facto standardem w kwantyzacji, głównie dzięki artykułowi \textit{QLoRA} (Dettmers i in., 2023), który spopularyzował format \textbf{NF4} (NormalFloat4). Metoda ta pozwoliła na dostrojenie modeli rzędu 65 miliardów parametrów na pojedynczym akceleratorze graficznym, co wcześniej było niemożliwe.
 
@@ -27,14 +25,13 @@ Ekosystem BitsAndBytes rozwinął się w stronę wsparcia wielu architektur i po
     \item \textbf{Podwójna Kwantyzacja (Double Quantization - DQ)}: Nawet przy kwantyzacji do 4 bitów potrzebne są stałe normalizujące (skalowanie i bias) zazwyczaj przechowywane w formacie FP32 dla każdej grupy wag. BnB wprowadziło podwójną kwantyzację, która kwantyzuje same stałe (tzw. metadane) z FP32 do FP8, co pozwala zaoszczędzić dodatkowe 0.37 bita na każdą wagę oryginalnego modelu. Co ciekawe, w BnB DQ parametry pomocnicze rozmiaru grupy wynoszą 256, co zachowuje strukturalną integralność macierzy Hesjana procesu uczenia.
 \end{itemize}
 
-\section{GPTQ (Accurate Post-Training Quantization)}
-\label{sec:gptq}
+\section{GPTQ}
 
-Algorytm GPTQ, zaproponowany przez Frantara pod koniec 2022 roku, wyznaczył zupełnie nowe standardy dla kwantyzacji po treningu (PTQ - Post-Training Quantization). Jego główną zaletą jest to, że potrafi on zredukować precyzję modeli posiadających setki miliardów parametrów (np. modele takie jak OPT-175B czy BLOOM-176B) w zaledwie kilka godzin obliczeń GPU, przy zachowaniu niemal identycznej dokładności względem modelu oryginalnego.
+Algorytm GPTQ, zaproponowany przez Frantara pod koniec 2022 roku, wyznaczył zupełnie nowe standardy dla kwantyzacji po treningu (PTQ - Post-Training Quantization). Nazwa pochodzi z połączenia skrótów GPT ("Generative Pre-trained Transformer") i PTQ ("Post-Training Quantization"). Jego główną zaletą jest to, że potrafi on zredukować precyzję modeli posiadających setki miliardów parametrów (np. modele takie jak OPT-175B czy BLOOM-176B) w zaledwie kilka godzin obliczeń GPU, przy zachowaniu niemal identycznej dokładności względem modelu oryginalnego.
 
 GPTQ bazuje na koncepcjach algorytmu OBD (Optimal Brain Damage) z początku lat 90., który służył do "przycinania" sieci neuronowych. W skrócie, GPTQ rozwiązuje następujący problem: mając warstwę liniową o wagach $W$, chcemy znaleźć skwantyzowane wagi $\hat{W}$, tak aby błąd rekonstrukcji wyjścia warstwy (błąd aktywacji) był jak najmniejszy dla danego wejścia $X$. Minimalizowana jest funkcja:
 \begin{equation}
-    \arg\min_{\hat{W}} || WX - \hat{W}X ||^2
+    \arg\min\nolimits_{\hat{W}} | WX - \hat{W}X |^2
 \end{equation}
 
 Ideą algorytmu jest kompresja wag wierszami (lub kolumnami w zależności od implementacji) oraz obserwowanie błędu powstającego na wyjściu, by ten sam błąd natychmiast kompensować na wagach sąsiednich, jeszcze nie skwantyzowanych. Obliczanie optymalnych modyfikacji wymaga zróżniczkowania funkcji błędu po wadze względem pozostałych wag z wykorzystaniem Macierzy Hesjana $H_F^{-1}$.
@@ -59,7 +56,6 @@ Podczas gdy sam algorytm bazowy GPTQ jest tylko matematycznym modelem PTQ, społ
 \end{itemize}
 
 \section{AWQ (Activation-Aware Weight Quantization)}
-\label{sec:awq}
 
 Publicacja AWQ (Activation-Aware Weight Quantization) z 2023 roku wniosła do dziedziny nową perspektywę: perspektywę braku symetrii ważności poszczególnych kanałów modelu. Zauważono, że do tej pory metody (w tym GPTQ) analizowały błędy z perspektywy globalnej w przestrzeni wag modelu. AWQ dowodzi, że w architekturze modelu istnieje zaledwie około \textbf{0,1\%-1\% wag} które mają kluczowe znaczenie w procesie wnioskowania i modyfikowanie ich wywołuje katastrofalny spadek inteligencji modelu.
 
@@ -85,7 +81,6 @@ Podobnie jak i GPTQ, AWQ rozwijane było jako projekt o otwartym kodzie źródł
 \end{itemize}
 
 \section{GGUF (GPT-Generated Unified Format)}
-\label{sec:gguf}
 
 Format GGUF (GPT-Generated Unified Format) to podstawowy fundament współczesnej inżynierii modeli na urządzenia brzegowe. Zaproponowany przez Georgiego Gerganowa (twórcę oprogramowania \texttt{llama.cpp}), wyparł on w szybkim czasie starszy format GGML. Motywacją do powstania GGUF był brak kompatybilności wstecznej i trudności w rozszerzaniu starych formatów o nowe architektury sieci, a także brak natywnego wsparcia dla zaawansowanych metod kwantyzacji.
 
@@ -132,10 +127,9 @@ W tabeli tej można wyróżnić kilka rodzin rozwiązań, które często sprawia
 \begin{table}[h]
     \centering
     \caption{Wpływ kwantyzacji GGUF na rozmiar modelu na przykładzie Qwen3.6-27B}
-    \label{tab:gguf_size_impact}
     \begin{tabular}{|c|c|}
         \hline
-        \textbf{Format} & \textbf{Rozmiar Modelu (GB)} \\ \hline
+        \textbf{Format} & \textbf{Rozmiar modelu (GB)} \\ \hline
         F16 & 55.6 \\ \hline
         IQ4\_XS & 15.4 \\ \hline
         IQ4\_NL & 16.1 \\ \hline
@@ -167,7 +161,6 @@ Formaty takie jak \textbf{IQ1\_S, IQ1\_M} (indeksy 24, 31) umożliwiają agresyw
 Ostatnie aktualizacje GGUF z 2024 r. wprowadzają wsparcie dla podtypów architektur mixture-of-experts (MoE), takich jak \textbf{MXFP4\_MOE} (indeks 38) optymalizujących alokację routingów na poziomie bramek ekspertów.
 
 \section{TurboQuant}
-\label{sec:turboquant}
 
 Na tle powyższych, wysoce rozwiniętych i sprofilowanych rozwiązań, TurboQuant stanowi nowatorskie rozwiązanie, które zdołało całkowicie namieszać w świecie optymizacji. Jest to metoda wywodząca się z dziedziny badań nad optymalizacją modeli i charakteryzuje się hybrydowym podejściem.
 
@@ -176,8 +169,7 @@ Problematyka operacji na liczbach całkowitych zakłada, że błędy skwantyzowa
 Główną ideą TurboQuant jest zaobserwowanie, że wstępnie skwantyzowana macierz wejścia według normy L2 w architekturze LLM ma strukturę quasi-izotropową. Zamanifestowało się to w filozofii losowych rotacji. Klastrowanie macierzy ortogonalnych i wykonanie tzw. szybkiej transformacji Walsha-Hadamarda (Fast Walsh-Hadamard Transform - FWHT) dla wejść przed włączeniem przybliżenia całkowitego, wytraca wagom ich wartości odstające w sposób prawie idealny. Z matematycznego punktu widzenia, TurboQuant nadaje macierzom "izotropię energetyczną" – dystrybucja jest spłaszczana. To usuwa anizotropię która prowadziła do dotychczasowych błędów. Fizycznie, usunięcie dużych oscylacji powoduje, że proste zaokrąglenie do INT4 czy nawet INT3 nie powoduje zapadania się klastrów odpowiadających za rozumowanie logiczne (Chain-of-Thought).
 
 \subsection{Podtypy TurboQuant}
-
-???
+W praktyce na TurboQuant składa się kilka wariantów różniących się zakresem stosowanej rotacji, poziomem kompresji oraz sposobem integracji z backendami inferencyjnymi. Najważniejszym kryterium podziału jest liczba bitów przypadająca na wagę oraz to, czy kwantyzacja obejmuje wyłącznie rdzeń macierzy, czy również dodatkowe struktury pomocnicze, takie jak routing ekspertów i bloki aktywacji. \\
 
 \begin{itemize}
     \item \textbf{TQ1\_0 oraz TQ2\_0}: Skwantyzowane z rzędu wektory istotnych cech zaimplementowanych do struktury GGUF (patrz Tabela \ref{tab:gguf_map_full}). W przeciwieństwie do klasycznych kwantyzacji 1-bitowych (jak binarne BNN), TQ2\_0 dzięki losowej rotacji gwarantuje, że w przestrzeni 2 bitów błąd kwantyzacji jest wysoce nieproporcjonalnie pomniejszony. Wdrożenia pokazały spadek jedynie o 1-2\% w testach MMLU i HumanEval w przeciwieństwie do katastrofalnych 20\% w starszych metodach 2-bitowych. Metoda TQ1\_0 jest absolutnym ekstremum kompresji, zaledwie 1 bit na wagę (wymaga dedykowanych kerneli dekompresujących).

@@ -72,8 +72,8 @@ def generate_plot(json_files, y_param, labels, output_name=None):
         yaxis_title=y_param,
         legend_title="Źródło danych",
         hovermode="x unified",
-        width=1920, 
-        height=1080,
+        width=800, 
+        height=600,
         margin=dict(l=80, r=80, t=100, b=80)
     )
     
@@ -96,7 +96,7 @@ def generate_plot(json_files, y_param, labels, output_name=None):
         options.add_argument("--headless")
         
         driver = webdriver.Firefox(options=options)
-        driver.set_window_size(2000, 1200)
+        driver.set_window_size(1600, 1600)
         
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             temp_html = f.name
