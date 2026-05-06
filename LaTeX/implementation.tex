@@ -1,6 +1,6 @@
 \section{Opis implementacji}
 Badając metody kwantyzacji modeli sztucznej inteligencji natrafiłem na wzór prostej kompresji wag. Zdecydowałem się skorzystać z niego w ramach tej pracy licencjackiej i stworzyć cały plik w stylu biblioteki w języku Python do szybkiej kwantyzacji i dekwantyzacji wag modeli tensorflow.
-Kod źródłowy powstałej biblioteki, którą nazwałem \textit{Uniquant}, jest dostępny na moim repozytorium GitHub pod adresem \url{https://github.com/Qbsoon/Uniquant}.
+Kod źródłowy powstałej biblioteki, którą nazwałem \textit{Uniquant}, jest dostępny na moim repozytorium GitHub \cite{qbsoon2025uniquant}.
 \subsection{Kwantyzacja}
 Skrótowa, punktowa prezentacja procesu kwantyzacji::
 \begin{itemize}
@@ -74,7 +74,7 @@ Do implementacji biblioteki \textit{Uniquant} wykorzystałem następujące narz�
     \end{itemize}
     \item CUDA Toolkit 12.8
 \end{itemize}
-Kod C++ kompilowany był w testach w zgodności ze standardem C++17, a do jego kompilacji wykorzystywałem narzędzie NVCC, które jest częścią CUDA Toolkit. \\
+Kod C++ kompilowany był w testach w zgodności ze standardem C++17, a do jego kompilacji wykorzystywałem narzędzie NVCC, które jest częścią CUDA Toolkit \cite{nvidia2024cuda}. \\
 Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytorium GitHub.
 
 \section{Testy wpływu kwantyzacji}
@@ -106,24 +106,20 @@ GPU: MSI Expert RTX 4070 Ti Super 16GB\\
 RAM: 64 GB DDR5 6000MHz \\
 Korzystając z systemu Fedora 44 KDE.
 \subsection{Zbiory danych}
-Do testów na regresji i klasyfikacji binarnej wykorzystałem zbiór danych o ubezpieczeniach medycznych "Medical Insurance Cost Prediction" z platformy Kaggle. \\
+Do testów na regresji i klasyfikacji binarnej wykorzystałem zbiór danych o ubezpieczeniach medycznych "Medical Insurance Cost Prediction" z platformy Kaggle \cite{thalla2025medical}. \\
 Zbiór ten zawiera dane o pacjentach, ich warunkach, stylu życia, chorobach, wizytach u lekarza, ubezpieczeniach oraz kosztach leczenia. \\
-Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/mohankrishnathalla/medical-insurance-cost-prediction} \\
 Udostępniony został na licencji \textit{C00: Pulic Domain}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
 
-Do klasyfikacji binarnej wykorzystałem również zbiór danych o chorobach serca "Heart Disease Dataset" z platformy Kaggle. \\
+Do klasyfikacji binarnej wykorzystałem również zbiór danych o chorobach serca "Heart Disease Dataset" z platformy Kaggle \cite{yasser2021heart}. \\
 Zbiór ten zawiera dane o pacjentach, takie jak np. poziom cholesterolu, i pozwala na przewidywanie, czy pacjent ma chorobę serca, czy nie. \\
-Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/yasserh/heart-disease-dataset} \\
 Udostępniony został na licencji \textit{C00: Public Domain}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
 
-Do testów na klasyfikacji wieloklasowej audio wykorzystałem zbiór danych o wypowiadanych słowach "mini\_speech\_commands" z platformy Kaggle. \\
+Do testów na klasyfikacji wieloklasowej audio wykorzystałem zbiór danych o wypowiadanych słowach "mini\_speech\_commands" z platformy Kaggle \cite{antfilatov2022mini}. \\
 Zbiór ten zawiera nagrania audio wypowiadanych słów z 8 kategorii: "down", "go", "left", "no", "right", "stop", "up" i "yes". \\
-Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/antfilatov/mini-speech-commands} \\
 Udostępniony został na licencji \textit{CC BY 4.0}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
 
-Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem zbiór danych o ziołach "Herb Classification Dataset" z platformy Kaggle. \\
+Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem zbiór danych o ziołach "Herb Classification Dataset" z platformy Kaggle \cite{ai4a2025herb,Sheth2025Herbify}. \\
 Zbiór ten zawiera zdjęcia 91 róznych ziół. \\
-Dostępny jest na platformie Kaggle pod adresem \url{https://www.kaggle.com/datasets/ai4a-lab/herb-plant-classification-dataset} \\
 Udostępniony został na licencji \textit{CC BY-NC-SA 4.0}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
 
 \subsection{Testy na regresji}
