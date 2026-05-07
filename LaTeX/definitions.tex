@@ -54,7 +54,7 @@ GeLU zostało opisane jako Gaussian Error Linear Unit i pojawia się w licznych 
 
 \subsection{Metryki oceny modeli}
 
-Do porównywania modeli wykorzystuje się metryki, czyli miary jakości predykcji. Accuracy określa, jaki odsetek wszystkich odpowiedzi został przewidziany poprawnie. Precision mówi, jaka część przykładów oznaczonych przez model jako pozytywne rzeczywiście taka była. Recall informuje, jaka część wszystkich rzeczywiście pozytywnych przykładów została wykryta. F1-score łączy precision i recall w jedną miarę harmoniczną, dzięki czemu dobrze nadaje się do oceny modeli przy niezbalansowanych danych.
+Do porównywania modeli wykorzystuje się metryki, czyli miary jakości predykcji. Dokładność określa, jaki odsetek wszystkich odpowiedzi został przewidziany poprawnie. Precyzja mówi, jaka część przykładów oznaczonych przez model jako pozytywne rzeczywiście taka była. Czułość informuje, jaka część wszystkich rzeczywiście pozytywnych przykładów została wykryta. Miara F1 łączy precyzję i czułość w jedną miarę harmoniczną, dzięki czemu dobrze nadaje się do oceny modeli przy niezbalansowanych danych.
 
 W zadaniach regresyjnych stosuje się inne miary. MAE, czyli średni błąd bezwzględny, pokazuje przeciętną wartość odchylenia predykcji od wartości rzeczywistej. MSE, czyli średni błąd kwadratowy, silniej karze większe odchylenia. RMSE jest pierwiastkiem z MSE i ma tę samą jednostkę co wartość przewidywana, dzięki czemu łatwiej go interpretować.
 
@@ -137,6 +137,6 @@ Przy opisie skali i przesunięcia stosuję symbole $s$, $z$ oraz $z_0$. W zależ
 
 W częściach dotyczących blokowej kompresji wag pojawiają się także symbole $b$ i $B$. Litera $b$ oznacza liczbę bitów przeznaczonych na zapis jednej wartości, a $B$ rozmiar bloku, czyli liczbę wag grupowanych wspólnie przy wyznaczaniu skali i innych parametrów pomocniczych. Jeżeli tekst odnosi się do granic reprezentacji dla danego formatu, pojawia się również zapis zakresu dopuszczalnych wartości, np. dla INT4 lub INT8.
 
-W opisie warstw i modeli często występują też zapisy związane z architekturą sieci. Dense, Conv1D, Conv2D, GRU oraz LayerNormalization oznaczają konkretne typy warstw, a GeLU, Sigmoid i Softmax oznaczają funkcje aktywacji używane w ich wyjściach. Gdy w tekście mowa o jakości modelu, stosowane są nazwy metryk: accuracy, precision, recall, f1-score, MAE, MSE i RMSE.
+W opisie warstw i modeli często występują też zapisy związane z architekturą sieci. Dense, Conv1D, Conv2D, GRU oraz LayerNormalization oznaczają konkretne typy warstw, a GeLU, Sigmoid i Softmax oznaczają funkcje aktywacji używane w ich wyjściach. Gdy w tekście mowa o jakości modelu, stosowane są nazwy metryk: dokładność, precyzja, czułość, miara F1, MAE, MSE i RMSE.
 
 W częściach dotyczących implementacji i testów pojawiają się ponadto skróty obliczeniowe i organizacyjne. CPU oznacza procesor centralny, GPU procesor graficzny, CUDA platformę obliczeń równoległych, a kernel CUDA pojedynczą funkcję wykonywaną równolegle na GPU. Pojęcie batch size oznacza rozmiar paczki danych przetwarzanych w jednym kroku, a block size rozmiar bloku wag wykorzystywanego w kwantyzacji.

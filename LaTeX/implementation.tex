@@ -91,7 +91,7 @@ Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwa
         \item TensorFlow - do tworzenia modeli i trenowania ich na zbiorze danych
         \item XGBoost - do tworzenia lasów losowych i trenowania ich na zbiorze danych
         \item NumPy
-        \item Scikit-learn - do obliczania metryk precision, recall i f1-score
+        \item Scikit-learn - do obliczania metryk dokładności, precyzji, czułości i miary F1
         \item Pandas - do wczytywania zbioru danych i przygotowywania
         \item Tqdm - do wyświetlania pasków postępu podczas iteracji po testach
         \item Kagglehub - do pobierania zbioru danych z platformy Kaggle
@@ -296,12 +296,12 @@ Do testów na klasyfikacji binarnej wykorzystałem specjalnie duży model stworz
         \hline
     \end{tabular}
 \end{table}
-Wszystkie warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Sigmoid". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty binary crossentropy oraz metryki accuracy. \\
+Wszystkie warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Sigmoid". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty binary crossentropy oraz metryki dokładności. \\
 W pierwszym teście model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w teście była kolumna "is\_high\_risk", która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
 W drugim teście model ten został wytrenowany na zbiorze danych o chorobach serca przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w teście była kolumna "target", która jest binarnym wskaźnikiem, czy pacjent ma chorobę serca, czy nie. \\
-Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
 Wyniki pierwszego testu zostały przedstawione w tabelach \ref{tab:classification_binary_4bit_results} i \ref{tab:classification_binary_8bit_results}. Dodatkowo, dla porównania, wyniki z obu testów zostały przedstawione na wykresie na rysunku \ref{fig:binary_classification_results}.
 \begin{table}
     \centering
@@ -309,7 +309,7 @@ Wyniki pierwszego testu zostały przedstawione w tabelach \ref{tab:classificatio
     \label{tab:classification_binary_4bit_results}
     \begin{tabular}{|c|c|c|c|c|c|}
         \hline
-        \textbf{Wersja} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Rozmiar} \\
+        \textbf{Wersja} & \textbf{Dokładność} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} & \textbf{Rozmiar} \\
         \hline
         Oryginał & 0,9729 & 0,9422 & 0,9860 & 0,9636 & 713 MiB \\
         \hline
@@ -331,7 +331,7 @@ Wyniki pierwszego testu zostały przedstawione w tabelach \ref{tab:classificatio
     \label{tab:classification_binary_8bit_results}
     \begin{tabular}{|c|c|c|c|c|c|}
         \hline
-        \textbf{Wersja} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Rozmiar} \\
+        \textbf{Wersja} & \textbf{Dokładność} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} & \textbf{Rozmiar} \\
         \hline
         Oryginał & 0,9729 & 0,9422 & 0,9860 & 0,9636 & 713 MiB \\
         \hline
@@ -350,7 +350,7 @@ Wyniki pierwszego testu zostały przedstawione w tabelach \ref{tab:classificatio
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{test1+2_classifier.png}
-    \caption{Porównanie parametru accuracy na wykresie dla klasyfikacji binarnej na dwóch różnych zestawach danych}
+    \caption{Porównanie parametru dokładności na wykresie dla klasyfikacji binarnej na dwóch różnych zestawach danych}
     \label{fig:binary_classification_results}
 \end{figure}
 
@@ -386,7 +386,7 @@ Do testów na klasyfikacji lasów losowych wykorzystałem model XGBClassifier z 
 \end{table}
 Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych z wykorzystaniem 20\% danych jako zbioru testowego. \\
 Parametrem przewidywanym w teście była kolumna "is\_high\_risk", która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
-Poza accuracy, testy korzystały też z metryki precision, recall i f1-score.
+Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1.
 Badane były warianty kwantyzacji 4-bitowej i 8-bitowej. \\
 Wyniki testów zostały przedstawione w tabeli \ref{tab:random_forest_results}. Ze względu na jednolitość, nie załączam wykresu wyników testów.
 \begin{table}
@@ -395,7 +395,7 @@ Wyniki testów zostały przedstawione w tabeli \ref{tab:random_forest_results}. 
     \label{tab:random_forest_results}
     \begin{tabular}{|c|c|c|c|c|c|}
         \hline
-        \textbf{Wersja} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Rozmiar} \\ 
+        \textbf{Wersja} & \textbf{Dokładność} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} & \textbf{Rozmiar} \\ 
         \hline
         Oryginał & 1.0 & 1.0 & 1.0 & 1.0 & 6.2 MiB \\
         \hline
@@ -471,10 +471,10 @@ Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży m
         \hline
     \end{tabular}
 \end{table}
-Warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Softmax". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty sparse categorical crossentropy oraz metryki accuracy. \\
+Warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Softmax". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty sparse categorical crossentropy oraz metryki dokładności. \\
 Model ten został wytrenowany na zbiorze danych słów audio przez 10 epok z wykorzystaniem 10\% danych jako zbioru testowego i 10\% jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach było wypowiadane słowo z dostępnych w zbiorze słów. \\
-Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
 Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_audio_4bit_results} i \ref{tab:multiclass_audio_8bit_results}. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku \ref{fig:multiclass_audio_classification_results}.
 \begin{table}
     \centering
@@ -482,7 +482,7 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_audio_4bit_
     \label{tab:multiclass_audio_4bit_results}
     \begin{tabular}{|c|c|c|c|c|c|}
         \hline
-        \textbf{Wersja} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Rozmiar} \\
+        \textbf{Wersja} & \textbf{Dokładność} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} & \textbf{Rozmiar} \\
         \hline
         Oryginał & 0,8867 & 0,8902 & 0,8895 & 0,8863 & 709 MiB \\
         \hline
@@ -504,7 +504,7 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_audio_4bit_
     \label{tab:multiclass_audio_8bit_results}
     \begin{tabular}{|c|c|c|c|c|c|}
         \hline
-        \textbf{Wersja} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Rozmiar} \\
+        \textbf{Wersja} & \textbf{Dokładność} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} & \textbf{Rozmiar} \\
         \hline
         Oryginał & 0,8867 & 0,8902 & 0,8895 & 0,8863 & 709 MiB \\
         \hline
@@ -523,7 +523,7 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_audio_4bit_
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{test_conv1d.png}
-    \caption{Porównanie parametru accuracy na wykresie dla klasyfikacji wieloklasowej audio}
+    \caption{Porównanie parametru dokładności na wykresie dla klasyfikacji wieloklasowej audio}
     \label{fig:multiclass_audio_classification_results}
 \end{figure}
 
@@ -618,7 +618,7 @@ Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duż
 Warstwy korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Softmax". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty categorical crossentropy oraz metryki categorical accuracy. \\
 Model ten został wytrenowany na zbiorze danych obrazów ziół przez 45 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach była klasa obrazu, czyli rodzaj zioła. \\
-Poza accuracy, testy korzystały też z metryki precision, recall i f1-score oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
 Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_image_4bit_results} i \ref{tab:multiclass_image_8bit_results}. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku \ref{fig:multiclass_image_classification_results}.
 \begin{table}
     \centering
@@ -626,7 +626,7 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_image_4bit_
     \label{tab:multiclass_image_4bit_results}
     \begin{tabular}{|c|c|c|c|c|c|}
         \hline
-        \textbf{Wersja} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Rozmiar} \\
+        \textbf{Wersja} & \textbf{Dokładność} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} & \textbf{Rozmiar} \\
         \hline
         Oryginał & 0,7322 & 0,7562 & 0,7101 & 0,7140 & 608 MiB \\
         \hline
@@ -648,7 +648,7 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_image_4bit_
     \label{tab:multiclass_image_8bit_results}
     \begin{tabular}{|c|c|c|c|c|c|}
         \hline
-        \textbf{Wersja} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Rozmiar} \\
+        \textbf{Wersja} & \textbf{Dokładność} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} & \textbf{Rozmiar} \\
         \hline
         Oryginał & 0,7322 & 0,7562 & 0,7101 & 0,7140 & 608 MiB \\
         \hline
@@ -667,7 +667,7 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_image_4bit_
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{test_conv2d.png}
-    \caption{Porównanie parametru accuracy na wykresie dla klasyfikacji wieloklasowej obrazów}
+    \caption{Porównanie parametru dokładności na wykresie dla klasyfikacji wieloklasowej obrazów}
     \label{fig:multiclass_image_classification_results}
 \end{figure}
 
