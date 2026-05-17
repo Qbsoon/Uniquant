@@ -3,3 +3,6 @@ __pycache__/
 *.keras
 *.uniq
 *.png
+*.qbin
+*.pkl
+uni_quant_cuda.egg-info/

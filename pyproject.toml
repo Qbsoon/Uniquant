@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uni-quant-cuda"
+version = "0.2.2"
+description = "Uni-Quant: CUDA-accelerated quantization/dequantization for TensorFlow models"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [ { name = "Jakub Grula", email = "ramsters110@gmail.com" } ]
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"License :: OSI Approved :: MIT License",
+	"Operating System :: POSIX :: Linux"
+]
+
+## No [tool.setuptools] section needed for flat layout
