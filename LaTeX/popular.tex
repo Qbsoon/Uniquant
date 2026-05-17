@@ -1,7 +1,7 @@
 \section{Wprowadzenie}
 Rozwój dużych modeli językowych (LLM) oraz modeli wizji komputerowej (VLM) doprowadził do sytuacji, w której wdrożenia produkcyjne oraz badania nad architekturami transformerów stały się domeną wyłącznie korporacji dysponujących wydajnymi klastrami obliczeniowymi. Kwantyzacja, polegająca na redukcji precyzji reprezentacji liczb (najczęściej z 32-bitowego formatu zmiennoprzecinkowego do 4- lub 8-bitowych wartości stałoprzecinkowych bądź niestandardowych formatów zmiennoprzecinkowych), stała się kluczowym mechanizmem zwiększającym popularność sztucznej inteligencji \cite{jacob2017quantization,dettmers2023case4bit}. Pozwala ona na drastyczne zmniejszenie zapotrzebowania na przepustowość pamięci oraz pojemność pamięci, przyspieszając wnioskowanie i umożliwiając uruchamianie modeli na sprzęcie konsumenckim.
 
-W niniejszym rozdziale przedstawione zostaną najbardziej rozpowszechnione rozwiązania dziedzinie kwantyzacji. Omówiono zarówno standardy  BitsAndBytes z biblioteki Hugging Face, algorytmy kompresji wag bazujące na analizie błędów (AWQ, GPTQ), nowatorskie formaty plików zoptymalizowane pod heterogeniczne architektury CPU i GPU (GGUF), jak i przełomowe metody mapowania rozkładu wag oparte na transformacjach ortogonalnych (TurboQuant).
+W niniejszym rozdziale przedstawione zostaną najbardziej rozpowszechnione rozwiązania w dziedzinie kwantyzacji. Omówiono zarówno standardy BitsAndBytes z biblioteki Hugging Face, algorytmy kompresji wag bazujące na analizie błędów (AWQ, GPTQ), nowatorskie formaty plików zoptymalizowane pod heterogeniczne architektury CPU i GPU (GGUF), jak i przełomowe metody mapowania rozkładu wag oparte na transformacjach ortogonalnych (TurboQuant).
 
 \section{BitsAndBytes oraz format NF4}
 
