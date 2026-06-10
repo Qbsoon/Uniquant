@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uni-quant-cuda"
-version = "0.2.2"
+version = "0.2.3"
 description = "Uni-Quant: CUDA-accelerated quantization/dequantization for TensorFlow models"
 readme = "README.md"
 license = { text = "MIT" }
