@@ -6,11 +6,6 @@ import os
 from pathlib import Path
 from torch.utils.cpp_extension import load_inline
 
-# Set GCC 15 for CUDA compilation (required for CUDA 13.2 on Fedora 44+)
-if os.path.exists('/usr/bin/gcc-15') and os.path.exists('/usr/bin/g++-15'):
-	os.environ['CC'] = '/usr/bin/gcc-15'
-	os.environ['CXX'] = '/usr/bin/g++-15'
-
 _quant_module = None
 _dequant_module = None
 
