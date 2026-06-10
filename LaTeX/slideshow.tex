@@ -1,0 +1,117 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% Numery slajdów
+\setbeamertemplate{footline}[frame number]
+
+\title[Kompresja wag modeli SI]{Kompresja wag modeli sztucznej inteligencji \\ -- metody i wpływ}
+\author{Jakub Grula}
+\institute[KUL]{Katolicki Uniwersytet Lubelski Jana Pawła II \\ Wydział Filozofii \\ Instytut Filozofii}
+\date{2026}
+
+\begin{document}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}{Temat i cel pracy}
+    \begin{block}{Problem}
+        \begin{itemize}
+            \item Modele SI są coraz większe (setki GB)
+            \item Wysokie wymagania sprzętowe
+            \item Ograniczenia wdrożeń produkcyjnych
+            \item Brak popularnych rozwiązań dla TensorFlow
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Cel pracy}
+        \begin{itemize}
+            \item Analiza metod kwantyzacji wag
+            \item Implementacja własnego narzędzia \textit{Uni-Quant}
+            \item Testy kompresji 4- i 8-bitowej
+        \end{itemize}
+    \end{block}
+    
+    \begin{alertblock}{Kwantyzacja}
+        redukcja precyzji liczb (FP32 $\rightarrow$ INT4/INT8)
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}{Ograniczenia i wyzwania kwantyzacji}
+    \begin{block}{Problemy}
+        \begin{itemize}
+            \item Utrata precyzji przy niskich bitach (4-bit)
+            \item Wrażliwość na rozmiar bloku
+            \item Wartości odstające w aktywacjach
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Wyzwania}
+        \begin{itemize}
+            \item Dobór optymalnych parametrów
+            \item Kompromis jakość/rozmiar
+            \item Wsparcie dla różnych architektur
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Implementacja Uni-Quant}
+    \begin{block}{Główne założenia}
+        \begin{itemize}
+            \item Blokowa kwantyzacja wag (rozmiar bloku: 8-128)
+            \item Skalowanie per-blok: $\mathit{scale} = \frac{\max(|\mathit{block}|)}{2^{\mathit{bits}-1} - 1}$
+            \item Pakowanie 2$\times$4-bit w 1 bajt
+            \item Format archiwum \texttt{.uniq}
+        \end{itemize}
+    \end{block}
+    
+    \begin{alertblock}{Optymalizacja CUDA}
+        kernele GPU przyspieszające kwantyzację i dekwantyzację
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}{Implementacja Uni-Quant c.d.}
+    
+    \begin{block}{Proces}
+        \begin{enumerate}
+            \item Iteracja po warstwach modelu TensorFlow
+            \item Podział na bloki i obliczenie skal
+            \item Kwantyzacja i zapis binarny
+            \item Manifest JSON z metadanymi
+        \end{enumerate}
+    \end{block}
+    
+    \begin{exampleblock}{Uwagi}
+        Małe fragmenty (< rozmiar bloku) zachowane w FP32
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Wyniki testów}
+    \begin{block}{Rodzaje testów}
+        \begin{itemize}
+            \item Regresja -- Niska strata na większych blokach
+            \item Klasyfikacja binarna -- Niewielka strata na każdej konfiguracji
+            \item Lasy losowe -- Brak straty (100\% przed i po)
+            \item Klasyfikacja audio -- Mała strata na 8-bit z blokami 8-64
+            \item Klasyfikacja obrazów -- Strata bliska zeru na 8-bit
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Zależności}
+        \begin{itemize}
+            \item Mniej bitów $\rightarrow$ mniejszy rozmiar pliku
+            \item Mniejszy blok $\rightarrow$ lepsza jakość, więcej metadanych
+            \item Zachowanie FP32 dla małych warstw $\rightarrow$ mniejsza degradacja
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\end{document}
