@@ -2,13 +2,13 @@
  Badając metody kwantyzacji modeli sztucznej inteligencji natrafiłem na wzór prostej kompresji wag. Zdecydowałem się skorzystać z niego w ramach tej pracy licencjackiej i stworzyć cały pakiet w stylu biblioteki w języku Python do szybkiej kwantyzacji i dekwantyzacji wag modeli TensorFlow.
 Kod źródłowy powstałej biblioteki, którą nazwałem \textit{Uni-Quant}, jest dostępny na moim repozytorium GitHub \cite{qbsoon2025uniquant} oraz jako dostępny pakiet Python \cite{qbsoon2026uniquant-pypi}.
 \subsection{Kwantyzacja}
-Skrótowa, punktowa prezentacja procesu kwantyzacji::
+Skrótowa, punktowa prezentacja procesu kwantyzacji:
 \begin{itemize}
-    \item Wczytywane są warstwy modelu i następuje iteracja po nich,
-    \item Dla każdej warstwy odczytywane są jej wagi,
-    \item Wagi dzielone są na bloki o określonym rozmiarze (np. 32 wagi),
-    \item Dla każdego bloku obliczana jest jego skala według wzoru,
-    \item Każda waga bloku jest dzielona przez skalę i zaokrąglana do najbliższej liczby całkowitej oraz "ściskana" do ustalonego zakresu wartości,
+    \item Wczytywane są warstwy modelu i następuje iteracja po nich.
+    \item Dla każdej warstwy odczytywane są jej wagi.
+    \item Wagi dzielone są na bloki o określonym rozmiarze (np. 32 wagi).
+    \item Dla każdego bloku obliczana jest jego skala według wzoru.
+    \item Każda waga bloku jest dzielona przez skalę i zaokrąglana do najbliższej liczby całkowitej oraz sprowadzana do ustalonego zakresu wartości.
     \item Takie wagi są przesuwane do pozytywnego zakresu wartości i zapisywane do pliku w postaci binarnej.
 \end{itemize}
 
@@ -18,11 +18,11 @@ Wewnątrz tych pętli wagi są dzielone na bloki o określonym rozmiarze (np. w 
 \begin{center}
 $\mathit{half\_point} = \frac{2^{\mathit{bits}}}{2}$ \qquad $\mathit{scale} = \frac{\max\!\big(|\mathit{block}|\big)}{\mathit{half\_point} - 1}$ \\
 \end{center}
-Gdzie $\mathit{block}$ to zbiór wag w danym bloku, a $\mathit{bits}$ to liczba bitów, na które chcemy skompresować wagi (kod obsługuje opcje 4 i 8 bit). \\
-Mając skalę, każda waga bloku jest dzielona przez nią i zaokrąglana do najbliższej liczby całkowitej. Następnie jest "ściskana" do zakresu wartości dyktowanego przez liczbę bitów, czyli $[-\mathit{half\_point} - 1, \; \mathit{half\_point} - 1]$. \\
+Gdzie $\mathit{block}$ to zbiór wag w danym bloku, a $\mathit{bits}$ to liczba bitów, na które skompresowane będą wagi (kod obsługuje opcje 4 i 8 bit). \\
+Mając skalę, każda waga bloku jest dzielona przez nią i zaokrąglana do najbliższej liczby całkowitej. Następnie jest sprowadzana do zakresu wartości dyktowanego przez liczbę bitów, czyli $[-\mathit{half\_point} - 1, \; \mathit{half\_point} - 1]$. \\
 Na koniec, aby nie poświęcać jednego bitu na dodatkowe informacje, $\mathit{half\_point}$ jest dodawane do każdej wagi, przesuwając je do pozytywnego zakresu wartości. \\
 Takie wagi są następnie zapisywane do pliku w postaci binarnej wraz ze skalą. Zapis następuje w formacie: [skala (float32), wagi (uint8)]. Uint8 jest stosowany nawet w przypadku opcji 4-bit, a wtedy na jedną liczbę uint8 składają się dwie wagi 4-bitowe złożone z sobą ($\mathit{w_1}\text{ << 4 || }\mathit{w_2}$). \\
-Do pliku binarnego nie trafiają żadne dodatkowe dane i nie są wstawiane żadne separatory między warstwami. Informacje o strukturze modelu, takie jak liczba warstw, ich rozmiary i rodzaje, są zachowywane poprzez zapis obok pliku binarnego pliku json, korzystając z wbudowanych funkcji eksportu konfiguracji modelu TensorFlow. Dodatkowe informacje, takie jak rozmiar bloku i liczba bitów, są zapisywane do osobnego pliku json. \\
+Do pliku binarnego nie trafiają żadne dodatkowe dane i nie są wstawiane żadne separatory między warstwami. Informacje o strukturze modelu, takie jak liczba warstw, ich rozmiary i rodzaje, są zachowywane poprzez zapis obok pliku binarnego pliku JSON, korzystając z wbudowanych funkcji eksportu konfiguracji modelu TensorFlow. Dodatkowe informacje, takie jak rozmiar bloku i liczba bitów, są zapisywane do osobnego pliku JSON. \\
 Na dysku te trzy pliki nie występują oddzielnie, a są zapisywane do jednego pliku z niestandardowym rozszerzeniem \textit{.uniq}, którego nazwa pochodzi od nazwy wybranej dla biblioteki, \textit{Uniquant}. Plik ten jest w rzeczywistości plikiem typu archiwum. Dzięki temu wszystkie wymagane dane są przechowywane w jednym miejscu, co ułatwia przechowywanie oraz dekwantyzację.
 
 Warto też wspomnieć, że w przypadku, gdy dana warstwa na ostatnim swoim wymiarze ma mniej wag niż określony rozmiar bloku, to jest zapisywana w pełnej postaci float32 bez kompresji. Zostało to dodane z dwóch powodów. Po pierwsze, ułatwia to dekompresję takich warstw. Po drugie, znacznie zmniejsza to wpływ kompresji na jakość wynikowych wag po dekompresji.
@@ -31,29 +31,29 @@ Warto też wspomnieć, że w przypadku, gdy dana warstwa na ostatnim swoim wymia
 Proces dekwantyzacji jest odwrotnością kwantyzacji, ale jest od niej o wiele bardziej złożony. Większa trudność wynika z faktu, że kwantyzacja tylko iteruje po kolejnych wagach, a granice warstw są nieprzekraczalne, podczas gdy w dekwantyzacji odczytywane wagi są zapisane w ciągłym wektorze i należy odpowiednio wyliczyć ich granice, odróżnić skale od wag i przypisać je w odpowiednim formacie do odpowiednich warstw modelu. \\
 Skrótowa, punktowa prezentacja procesu dekwantyzacji:
 \begin{itemize}
-    \item Odczytywane są informacje kwantyzacji z jednego pliku json, a informacje o strukturze modelu z drugiego,
-    \item Odczytywany jest plik binarny z wagami i skalami,
-    \item Następuje iteracja po warstwach modelu,
-    \item Wydzielany jest zakres wag warstwy,
-    \item Wagi są mnożone przez odpowiednie skale i cofane jest ich przesunięcie,
+    \item Odczytywane są informacje kwantyzacji z jednego pliku JSON, a informacje o strukturze modelu z drugiego.
+    \item Odczytywany jest plik binarny z wagami i skalami.
+    \item Następuje iteracja po warstwach modelu.
+    \item Wydzielany jest zakres wag warstwy.
+    \item Wagi są mnożone przez odpowiednie skale i cofane jest ich przesunięcie.
     \item Takie zdekwantyzowane wagi są przypisywane do odpowiedniej warstwy modelu.
 \end{itemize}
 
-Dekwantyzacja zaczyna się od odczytania informacji o kwantyzacji (rozmiar bloku, liczba bitów) z jednego pliku json z paczki \textit{.uniq} oraz informacji o strukturze modelu z drugiego pliku json. Te drugie wczytywane są funkcjami TensorFlow, które odtwarzają z nich model z pustymi wagami. Następnie wczytywany jest plik binarny z wagami i skalami do zmiennej, która będzie przechowywać te wagi przez cały proces dekwantyzacji. \\
+Dekwantyzacja zaczyna się od odczytania informacji o kwantyzacji (rozmiar bloku, liczba bitów) z jednego pliku JSON z paczki \textit{.uniq} oraz informacji o strukturze modelu z drugiego pliku JSON. Te drugie wczytywane są funkcjami TensorFlow, które odtwarzają z nich model z pustymi wagami. Następnie wczytywany jest plik binarny z wagami i skalami do zmiennej, która będzie przechowywać te wagi przez cały proces dekwantyzacji. \\
 Po tym rozpoczyna się pętla po warstwach modelu w postaci iteracji po obiektach struktury modelu. Po stronie dekwantyzacji ścieżki kodu nie są podzielone na podstawie liczby wymiarów warstw, a na podstawie nazw typów warstw. Obsługiwane są warstwy Dense, Conv1D, Conv2D, GRU i LayerNormalization. Na początku kodu dla każdej warstwy jest wyliczany zakres jej danych w wektorze wag na podstawie rozmiarów warstwy oraz wskaźnika aktualnej pozycji w wektorze wag, który jest aktualizowany po każdej warstwie. Wzór na wektor wag: \\
 \vspace{-1.5em}
 \begin{center}
-$\mathit{w}[\mathit{ptr} : \mathit{ptr} + \mathit{layer\_size}]$ \\
+$\mathit{w}[\mathit{ptr} : \mathit{ptr} + \mathit{layer\_size}]$, \\
 \end{center}
-Gdzie $\mathit{w}$ to wektor wag, $\mathit{ptr}$ to wskaźnik aktualnej pozycji, a $\mathit{layer\_size}$ to liczba bitów danych warstwy (współczynniki skali i wagi). Ta ostatnia zmienna rozmiaru jest wyliczana poprzez pomnożenie razy 4 (lub 8, w zależności od parametru bitów kwantyzacji) liczby wszystkich wag warstwy oraz dodanie do tego pomnożonej przez 32 (liczba bitów reprezentacji skali) liczby bloków warstwy. \\
-Ponieważ warstwy TensorFlow składają się w rzeczywistości z 2 lub więcej macierzy wag, należy brać to pod uwagę w trakcie wyliczania zakresu danych warstwy oraz podczas faktycznej dekwantyzacji wag. Liczba macierzy określa liczbę głównych pętli, które będą musiały po sobie następować w obrębie kodu danego typu warstwy, a ilość wymiarów każdej z macierzy oznacza ilość zagnieżdżonych pętli w głównej pętli danej macierzy. \\
+gdzie $\mathit{w}$ to wektor wag, $\mathit{ptr}$ to wskaźnik aktualnej pozycji, a $\mathit{layer\_size}$ to liczba bitów danych warstwy (współczynniki skali i wagi). Ta ostatnia zmienna rozmiaru jest wyliczana poprzez pomnożenie razy 4 (lub 8, w zależności od parametru bitów kwantyzacji) liczby wszystkich wag warstwy oraz dodanie do tego pomnożonej przez 32 (liczba bitów reprezentacji skali) liczby bloków warstwy. \\
+Ponieważ warstwy TensorFlow składają się w rzeczywistości z 2 lub więcej macierzy wag, należy brać to pod uwagę w trakcie wyliczania zakresu danych warstwy oraz podczas faktycznej dekwantyzacji wag. Liczba macierzy określa liczbę głównych pętli, które będą musiały po sobie następować w obrębie kodu danego typu warstwy, a~ilość wymiarów każdej z macierzy oznacza ilość zagnieżdżonych pętli w głównej pętli danej macierzy. \\
 W faktycznej części dekwantyzacji wag, wewnątrz ciała wspomnianych pętli, korzystając z drugiego, wewnętrznego wskaźnika pozycji, wydzielany jest każdy blok wag wraz z jego współczynnikiem skali. W przypadku kwantyzacji 4-bitowej występuje krok wydobycia obu liczb 4-bitowych z odczytanej liczby 8-bitowej. Następnie wszystkie wagi bloku są mnożone przez skalę i cofane jest ich przesunięcie z kroku kwantyzacji. Z takich zdekwantyzowanych wag jest tworzona macierz o odpowiednich wymiarach, która jest przypisywana do odpowiedniej macierzy warstwy modelu. \\
 Po zakończeniu dekwantyzacji, funkcja zwraca gotowy model z przypisanymi wagami, który jest gotowy do użycia.
 
 \section{Wykorzystanie możliwości CUDA}
 W trakcie implementacji biblioteki stwierdziłem, że czasy kwantyzacji oraz dekwantyzacji da się przyspieszyć wykorzystując możliwości obliczeń równoległych na kartach graficznych z rdzeniami CUDA i tworząc tak zwane kernele CUDA. \\
-Z tego powodu wydzieliłem kod na dwa pliki "uniquant.py" i "uniquant\_legacy.py". Ten pierwszy zawiera implementację z wykorzystaniem CUDA, a drugi oryginalną implementację bez tego wsparcia. W ten sposób można łatwo porównać oba podejścia i ocenić wpływ wykorzystania CUDA na czasy kwantyzacji i dekwantyzacji. \\
-Implementacja CUDA nadal zawiera ten sam kod podstawowy, ale podobieństwa kończą się na etapie wydzielenia wag warstwy. W kodzie CUDA trafiają one do tablicy numpy, która jest kopiowana do pamięci GPU. Następnie z obecnymi danymi wywoływana jest odpowiednia dla warstwy funkcja w osobnym pliku z kodem w języku C++, korzystającym z narzędzi CUDA. \\
+Z tego powodu wydzieliłem kod na dwa pliki \textit{uniquant.py} i \textit{uniquant\_legacy.py}. Ten pierwszy zawiera implementację z wykorzystaniem CUDA, a drugi oryginalną implementację bez tego wsparcia. W ten sposób można łatwo porównać oba podejścia i ocenić wpływ wykorzystania CUDA na czasy kwantyzacji i dekwantyzacji. \\
+Implementacja CUDA nadal zawiera ten sam kod podstawowy, ale podobieństwa kończą się na etapie wydzielenia wag warstwy. W kodzie CUDA trafiają one do tablicy numpy, która jest kopiowana do pamięci GPU. Następnie z~obecnymi danymi wywoływana jest odpowiednia dla warstwy funkcja w osobnym pliku z kodem w!języku C++, korzystającym z narzędzi CUDA. \\
 Taki kod wykonuje równolegle obliczenia, dzieląc wykonania pętli pomiędzy dostępne rdzenie CUDA, co znacząco przyspiesza cały proces kwantyzacji i dekwantyzacji. Po zakończeniu obliczeń, wyniki są kopiowane z powrotem na CPU do pamięci RAM, skąd są zapisywane do pliku lub przypisywane do warstwy modelu, w zależności od tego, czy jest to kwantyzacja, czy dekwantyzacja. \\
 Tabela \ref{tab:quantization_dequantization_times} przedstawia porównanie średnich czasów kwantyzacji i dekwantyzacji pozyskanych z opisywanych poniżej testów.
 
@@ -64,18 +64,18 @@ Do implementacji biblioteki \textit{Uniquant} wykorzystałem następujące narz�
     \item Biblioteki Python:
     \begin{itemize}
         \item PyTorch - do wczytywania kerneli cuda oraz zamiany macierzy na tensory cuda
-        \item NumPy
+        \item NumPy - do przyspieszenia operacji matematycznych
         \item Tqdm - do wyświetlania pasków postępu podczas procesów kwantyzacji i dekwantyzacji
-        \item Pathlib
+        \item Pathlib - do wygodnych operacji na ścieżkach
         \item Zipfile - do obsługi archiwów \textit{.uniq}
         \item Ctypes - do zapisu uint8 w wersji legacy
         \item Struct - do zapisu float32 w wersji legacy
-        \item Json
+        \item JSON - do obsługi formatu JSON
     \end{itemize}
     \item CUDA Toolkit 12.8
 \end{itemize}
 Kod C++ kompilowany był w testach w zgodności ze standardem C++17, a do jego kompilacji wykorzystywałem narzędzie NVCC, które jest częścią CUDA Toolkit \cite{nvidia2024cuda}. \\
-Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytorium GitHub.
+Po konkretne wersje bibliotek odsyłam do pliku \textit{requirements.txt} w repozytorium GitHub.
 
 \section{Testy wpływu kwantyzacji}
 W celu przetestowania wpływu kwantyzacji na jakość wynikowych wag po dekwantyzacji, przeprowadziłem testy na różnych modelach i konfiguracjach. \\
@@ -90,15 +90,15 @@ Do implementacji testów wpływu kwantyzacji na jakość wynikowych wag po dekwa
     \begin{itemize}
         \item TensorFlow - do tworzenia modeli i trenowania ich na zbiorze danych
         \item XGBoost - do tworzenia lasów losowych i trenowania ich na zbiorze danych
-        \item NumPy
+        \item NumPy - do przyspieszenia operacji matematycznych
         \item Scikit-learn - do obliczania metryk dokładności, precyzji, czułości i miary F1
-        \item Pandas - do wczytywania zbioru danych i przygotowywania
+        \item Pandas - do wczytania i przygotowywania zbioru danych
         \item Tqdm - do wyświetlania pasków postępu podczas iteracji po testach
         \item Kagglehub - do pobierania zbioru danych z platformy Kaggle
-        \item Json
+        \item JSON - do obsługi formatu JSON
     \end{itemize}
 \end{itemize}
-Po konkretne wersje bibliotek odsyłam do pliku "requirements.txt" w repozytorium GitHub. \\
+Po konkretne wersje bibliotek odsyłam do pliku \textit{requirements.txt} w repozytorium GitHub. \\
 
 Wszelkie testy z tej sekcji zostały przeprowadzone na sprzęcie: \\
 CPU: AMD Ryzen 5 7600X \\
@@ -106,24 +106,19 @@ GPU: MSI Expert RTX 4070 Ti Super 16GB\\
 RAM: 64 GB DDR5 6000MHz CL36 \\
 Korzystając z systemu Fedora 44 KDE.
 \subsection{Zbiory danych}
-Do testów na regresji i klasyfikacji binarnej wykorzystałem zbiór danych o ubezpieczeniach medycznych "Medical Insurance Cost Prediction" z platformy Kaggle \cite{thalla2025medical}. \\
+Do testów na regresji i klasyfikacji binarnej wykorzystałem zbiór danych o ubezpieczeniach medycznych \textit{Medical Insurance Cost Prediction} z platformy Kaggle \cite{thalla2025medical}. \\
 Zbiór ten zawiera dane o pacjentach, ich warunkach, stylu życia, chorobach, wizytach u lekarza, ubezpieczeniach oraz kosztach leczenia. \\
 Udostępniony został na licencji \textit{CC0: Public Domain}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
 
-Do klasyfikacji binarnej wykorzystałem również zbiór danych o chorobach serca "Heart Disease Dataset" z platformy Kaggle \cite{yasser2021heart}. \\
-Zbiór ten zawiera dane o pacjentach, takie jak np. poziom cholesterolu, i pozwala na przewidywanie, czy pacjent ma chorobę serca, czy nie. \\
-Udostępniony został na licencji \textit{CC0: Public Domain}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
+Do klasyfikacji binarnej wykorzystałem również zbiór danych o chorobach serca \textit{Heart Disease Dataset} z~platformy Kaggle \cite{yasser2021heart}. Zbiór ten zawiera dane o pacjentach, takie jak np. poziom cholesterolu, i pozwala na przewidywanie, czy pacjent ma chorobę serca, czy nie. Udostępniony został na licencji \textit{CC0: Public Domain}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania bez żadnych ograniczeń.
 
-Do testów na klasyfikacji wieloklasowej audio wykorzystałem zbiór danych o wypowiadanych słowach "mini\_speech\_commands" z platformy Kaggle \cite{antfilatov2022mini}. \\
-Zbiór ten zawiera nagrania audio wypowiadanych słów z 8 kategorii: "down", "go", "left", "no", "right", "stop", "up" i "yes". \\
-Udostępniony został na licencji \textit{CC BY 4.0}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
+Do testów na klasyfikacji wieloklasowej audio wykorzystałem zbiór danych \textit{mini\_speech\_commands} z platformy Kaggle \cite{antfilatov2022mini}. Zbiór ten zawiera nagrania audio wypowiadanych słów z 8 kategorii: \textit{down}, \textit{go}, \textit{left}, \textit{no}, \textit{right}, \textit{stop}, \textit{up} i \textit{yes}. Udostępniony został na licencji \textit{CC BY 4.0}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
 
-Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem zbiór danych o ziołach "Herb Classification Dataset" z platformy Kaggle \cite{ai4a2025herb,Sheth2025Herbify}. \\
-Zbiór ten zawiera zdjęcia 91 róznych ziół. \\
+Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem zbiór danych o ziołach \textit{Herb Classification Dataset} z platformy Kaggle \cite{ai4a2025herb,Sheth2025Herbify}. Zbiór ten zawiera zdjęcia 91 róznych ziół. 
 Udostępniony został na licencji \textit{CC BY-NC-SA 4.0}, co oznacza, że jest darmowy do użytkowania, modyfikowania i rozpowszechniania, ale wymaga podania odpowiednich informacji o źródle.
 
 \subsection{Testy na regresji}
-Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strzukturze przedstawionej w tabeli \ref{tab:regression_model_structure}, "Struktura modelu regresji". \\
+Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strzukturze przedstawionej w tabeli \ref{tab:regression_model_structure}, \textit{Struktura modelu regresji}. \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu regresji}
@@ -180,10 +175,10 @@ Do testów na regresji wykorzystałem specjalnie duży model stworzony w bibliot
         \hline
     \end{tabular}
 \end{table}
-Wszystkie warstwy Dense korzystają z aktywacji "GeLU". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty średniego błędu kwadratowego (MSE) oraz metryki średniego błędu bezwzględnego (MAE). \\
+Wszystkie warstwy Dense korzystają z aktywacji \textit{GeLU}. Model został skompilowany z wykorzystaniem optymalizatora \textit{AdamW}, funkcji straty średniego błędu kwadratowego (MSE) oraz metryki średniego błędu bezwzględnego (MAE). \\
 Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
-Parametrem przewidywanym w testach była kolumna "risk\_score", która jest oceną ryzyka pacjenta na podstawie jego danych. Jego wartości pochodzą z zakresu [0, 1], ze średnią wartością równą 0,519849 i odchyleniem standardowym 0,250669.\\
-Poza MAE i MSE, testy korzystały też z metryki pierwiastka średniego błędu kwadratowego (RMSE) i sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Parametrem przewidywanym w testach była kolumna \textit{risk\_score}, która jest oceną ryzyka pacjenta na podstawie jego danych. Jego wartości pochodzą z zakresu [0, 1], ze średnią wartością równą 0,519849 i odchyleniem standardowym 0,250669.\\
+Poza MAE i MSE, testy korzystały też z metryki pierwiastka średniego błędu kwadratowego (RMSE) i sprawdzały rozmiar modelu w mibibajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
 Wyniki testów zostały przedstawione w tabelach \ref{tab:regression_4bit_results} i \ref{tab:regression_8bit_results}. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku \ref{fig:regression_results}.
 \begin{table}
     \centering
@@ -232,14 +227,14 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:regression_4bit_result
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{test_results.png}
-    \caption{Porównanie parametru mae na wykresie dla regresji}
+    \caption{Porównanie parametru MAE na wykresie dla regresji}
     \label{fig:regression_results}
 \end{figure}
 
 Jak widać na przedstawionych wynikach, wyniki na rozmiarach bloków 32-128 są bardzo zbliżone do oryginalnego modelu, niezależnie od wariantu bitów. Za to rozmiary bloków 8 i 16 radzą sobie znacznie gorzej. Spoglądając na wyniki i rozmiary plików, rozmiar 64 bloków w wariancie 4-bitowym wydaje się być rozsądnym wyborem.
 
 \subsection{Testy na klasyfikacji binarnej}
-Do testów na klasyfikacji binarnej wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli \ref{tab:classification_binary_model_structure}, "Struktura modelu klasyfikacji binarnej". \\
+Do testów na klasyfikacji binarnej wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o~strukturze przedstawionej w tabeli \ref{tab:classification_binary_model_structure}, \textit{Struktura modelu klasyfikacji binarnej}. \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji binarnej}
@@ -296,12 +291,12 @@ Do testów na klasyfikacji binarnej wykorzystałem specjalnie duży model stworz
         \hline
     \end{tabular}
 \end{table}
-Wszystkie warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Sigmoid". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty binary crossentropy oraz metryki dokładności. \\
+Wszystkie warstwy Dense korzystają z aktywacji \textit{GeLU} poza ostatnią warstwą, która korzysta z aktywacji \textit{Sigmoid}. Model został skompilowany z wykorzystaniem optymalizatora \textit{AdamW}, funkcji straty \textit{binary crossentropy} oraz metryki dokładności. \\
 W pierwszym teście model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
-Parametrem przewidywanym w teście była kolumna "is\_high\_risk", która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
+Parametrem przewidywanym w teście była kolumna \textit{is\_high\_risk}, która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
 W drugim teście model ten został wytrenowany na zbiorze danych o chorobach serca przez 15 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
-Parametrem przewidywanym w teście była kolumna "target", która jest binarnym wskaźnikiem, czy pacjent ma chorobę serca, czy nie. \\
-Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Parametrem przewidywanym w teście była kolumna \textit{target}, która jest binarnym wskaźnikiem, czy pacjent ma chorobę serca, czy nie. \\
+Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w mibibajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i~128. \\
 Wyniki pierwszego testu zostały przedstawione w tabelach \ref{tab:classification_binary_4bit_results} i \ref{tab:classification_binary_8bit_results}. Dodatkowo, dla porównania, wyniki z obu testów zostały przedstawione na wykresie na rysunku \ref{fig:binary_classification_results}.
 \begin{table}
     \centering
@@ -357,7 +352,7 @@ Wyniki pierwszego testu zostały przedstawione w tabelach \ref{tab:classificatio
 Wyniki pokazują bardzo dobrą jakość względem oryginału dla wszystkich konfiguracji. \\
 
 \subsection{Testy na klasyfikacji lasów losowych}
-Do testów na klasyfikacji lasów losowych wykorzystałem model XGBClassifier z biblioteki XGBoost. Parametry zostały przedstawione w tabeli \ref{tab:random_forest_model_structure}, "Struktura modelu klasyfikacji lasów losowych". \\
+Do testów na klasyfikacji lasów losowych wykorzystałem model XGBClassifier z biblioteki XGBoost. Parametry zostały przedstawione w tabeli \ref{tab:random_forest_model_structure}, \textit{Struktura modelu klasyfikacji lasów losowych}. \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji lasów losowych}
@@ -376,16 +371,16 @@ Do testów na klasyfikacji lasów losowych wykorzystałem model XGBClassifier z 
         \hline
         Colsample\_bytree & 0,8 \\
         \hline
-        Eval\_metric & "logloss" \\
+        Eval\_metric & logloss \\
         \hline
-        Tree\_method & "hist" \\
+        Tree\_method & hist \\
         \hline
         Random\_state & 86 \\
         \hline
     \end{tabular}
 \end{table}
 Model ten został wytrenowany na zbiorze danych o ubezpieczeniach medycznych z wykorzystaniem 20\% danych jako zbioru testowego. \\
-Parametrem przewidywanym w teście była kolumna "is\_high\_risk", która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
+Parametrem przewidywanym w teście była kolumna \textit{is\_high\_risk}, która jest binarnym wskaźnikiem, czy pacjent jest oceniany jako wysokiego ryzyka na podstawie jego danych. \\
 Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1.
 Badane były warianty kwantyzacji 4-bitowej i 8-bitowej. \\
 Wyniki testów zostały przedstawione w tabeli \ref{tab:random_forest_results}. Ze względu na jednolitość, nie załączam wykresu wyników testów.
@@ -410,7 +405,7 @@ Wyniki pokazują, że oba warianty kwantyzacji osiągają dokładnie takie same 
 Rozmiar na obu również udało się zmniejszyć o około 33\%. Oba tryby kwantyzacji zajmują dokładnie tyle samo miejsca, ze względu na inną strukturę modeli XGB, a przez to inną metodę kwantyzacji. \\
 
 \subsection{Testy na klasyfikacji wieloklasowej audio}
-Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli \ref{tab:multiclass_audio_model_structure}, "Struktura modelu klasyfikacji wieloklasowej audio". \\
+Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli \ref{tab:multiclass_audio_model_structure}, \textit{Struktura modelu klasyfikacji wieloklasowej}. \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji wieloklasowej audio}
@@ -471,10 +466,10 @@ Do testów na klasyfikacji wieloklasowej audio wykorzystałem specjalnie duży m
         \hline
     \end{tabular}
 \end{table}
-Warstwy Dense korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Softmax". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty sparse categorical crossentropy oraz metryki dokładności. \\
+Warstwy Dense korzystają z aktywacji \textit{GeLU} poza ostatnią warstwą, która korzysta z aktywacji \textit{Softmax}. Model został skompilowany z wykorzystaniem optymalizatora \textit{AdamW}, funkcji straty \textit{sparse categorical crossentropy} oraz metryki dokładności. \\
 Model ten został wytrenowany na zbiorze danych słów audio przez 10 epok z wykorzystaniem 10\% danych jako zbioru testowego i 10\% jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach było wypowiadane słowo z dostępnych w zbiorze słów. \\
-Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w mibibajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i~128. \\
 Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_audio_4bit_results} i \ref{tab:multiclass_audio_8bit_results}. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku \ref{fig:multiclass_audio_classification_results}.
 \begin{table}
     \centering
@@ -530,7 +525,7 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_audio_4bit_
 Wyniki pokazują, że wariant 4-bitowy nie radzi sobie dobrze z kwantyzacją tego modelu, osiągając wyniki poniżej 50\% w większości metryk dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie znacznie lepiej, osiągając wyniki bliskie oryginału dla prawie wszystkich rozmiarów bloków. \\
 
 \subsection{Testy na klasyfikacji wieloklasowej obrazów}
-Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli \ref{tab:multiclass_image_model_structure}, "Struktura modelu klasyfikacji wieloklasowej obrazów". \\
+Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duży model stworzony w bibliotece TensorFlow, o strukturze przedstawionej w tabeli \ref{tab:multiclass_image_model_structure}, \textit{Struktura modelu klasyfikacji wieloklasowej obrazów}. \\
 \begin{table}[htbp]
     \centering
     \caption{Struktura modelu klasyfikacji wieloklasowej obrazów}
@@ -615,10 +610,10 @@ Do testów na klasyfikacji wieloklasowej obrazów wykorzystałem specjalnie duż
         \hline
     \end{tabular}
 \end{table}
-Warstwy korzystają z aktywacji "GeLU" poza ostatnią warstwą, która korzysta z aktywacji "Softmax". Model został skompilowany z wykorzystaniem optymalizatora AdamW, funkcji straty categorical crossentropy oraz metryki categorical accuracy. \\
+Warstwy korzystają z aktywacji \textit{GeLU} poza ostatnią warstwą, która korzysta z aktywacji \textit{Softmax}. Model został skompilowany z wykorzystaniem optymalizatora \textit{AdamW}, funkcji \textit{straty categorical crossentropy} oraz metryki \textit{categorical accuracy}. \\
 Model ten został wytrenowany na zbiorze danych obrazów ziół przez 45 epok z wykorzystaniem 20\% danych jako zbioru testowego i 20\% zbioru treningowego jako zbioru walidacyjnego. \\
 Parametrem przewidywanym w testach była klasa obrazu, czyli rodzaj zioła. \\
-Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w megabajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i 128. \\
+Poza dokładnością, testy korzystały też z metryki precyzji, czułości i miary F1 oraz sprawdzały rozmiar modelu w mibibajtach. Badane były warianty kwantyzacji 4-bitowej i 8-bitowej z rozmiarami bloków: 8, 16, 32, 64 i~128. \\
 Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_image_4bit_results} i \ref{tab:multiclass_image_8bit_results}. Dodatkowo, dla porównania, wyniki testów zostały przedstawione na wykresie na rysunku \ref{fig:multiclass_image_classification_results}.
 \begin{table}
     \centering
@@ -671,12 +666,12 @@ Wyniki testów zostały przedstawione w tabelach \ref{tab:multiclass_image_4bit_
     \label{fig:multiclass_image_classification_results}
 \end{figure}
 
-Wyniki pokazują, że wariant 4-bitowy nie radzi sobie w ogóle z kwantyzacją tego modelu, osiągając wyniki bliskie 0\% we wszystkich metrykach dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie bardzo dobrze, osiągając wyniki bliskie oryginału dla wszystkich rozmiarów bloków. \\
+Wyniki pokazują, że wariant 4-bitowy nie radzi sobie w ogóle z kwantyzacją tego modelu, osiągając wyniki bliskie 0\% we wszystkich metrykach dla wszystkich rozmiarów bloków. Wariant 8-bitowy radzi sobie bardzo dobrze, osiągając wyniki bliskie oryginału dla wszystkich rozmiarów bloków. Najbardziej prawdopodobnym wnioskiem jest, że złożoność modelu i skomplikowanie zadania wymagają większej precyzji niż 4-bitowa.\\
 Należy zauważyć, że te testy były o tyle inne i trudniejsze niż poprzednie, że występowało tu aż 91 klas, oraz że sprawność modelu według metryk była znacznie mniejsza niż w poprzednich testach. \\
 
 \subsection{Czasy kwantyzacji i dekwantyzacji}
 Przeprowadzając testy zbierałem też czasy kwantyzacji i dekwantyzacji dla wszystkich testowanych modeli. Wyniki zostały przedstawione w tabeli \ref{tab:quantization_dequantization_times}. Tabela przedstawia również porównanie czasów dla operacji wykonanych w czystym kodzie Python oraz z wykorzystaniem kerneli CUDA.\\
-Czasy zostały zebrane poprzez zapisanie czasu rozpoczęcia i czasu zakończenia operacji oraz obliczenie różnicy między nimi. Do pobrania czasu korzystałem z polecenia "time.perf\_counter()" z biblioteki "time" w Pythonie.
+Czasy zostały zebrane poprzez zapisanie czasu rozpoczęcia i czasu zakończenia operacji oraz obliczenie różnicy między nimi. Do pobrania czasu korzystałem z polecenia \textit{time.perf\_counter()} z biblioteki \textit{time} w Pythonie.
 \begin{table}[htbp]
 	\centering
     \caption{Tabela porównania czasów}

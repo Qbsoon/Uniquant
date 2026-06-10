@@ -6,13 +6,13 @@ Zanim zostaną omówione konkretne metody kompresji wag modeli sztucznej intelig
 
 Współczesne modele sieci neuronowych opisuje się najczęściej za pomocą tensorów, czyli wielowymiarowych tablic liczb. W praktyce najważniejsze są dwa rodzaje takich danych: aktywacje, które są wyliczane w trakcie działania modelu, oraz parametry, czyli wagi i biasy zapisane po zakończeniu treningu. To właśnie parametry zajmują znaczną część pamięci modelu i stanowią główny obszar zainteresowania przy jego kompresji.
 
-Model składa się z warstw, a każda warstwa realizuje określoną operację matematyczną. W warstwach gęstych, konwolucyjnych i rekurencyjnych dominują mnożenia macierzy i sumowania wartości, dlatego nawet niewielka zmiana sposobu reprezentacji wag może istotnie wpłynąć zarówno na rozmiar modelu, jak i na jego wydajność obliczeniową. W dalszej części pracy pojęcia \textit{waga}, \textit{parametr} i \textit{wartość wagowa} są używane zamiennie, o ile z kontekstu nie wynika inaczej.
+Model składa się z warstw, a każda warstwa realizuje określoną operację matematyczną. W warstwach gęstych, konwolucyjnych i rekurencyjnych dominują mnożenia macierzy i sumowania wartości, dlatego nawet niewielka zmiana sposobu reprezentacji wag może istotnie wpłynąć zarówno na rozmiar modelu, jak i na jego wydajność obliczeniową. W dalszej części pracy pojęcia \textit{waga}, \textit{parametr} i \textit{wartość wagowa} są używane zamiennie, o ile z~kontekstu nie wynika inaczej.
 
 \subsection{Reprezentacja liczb}
 
 W pamięci komputera liczby mogą być zapisywane w różnych formatach. Najczęściej spotykaną reprezentacją w modelach uczenia maszynowego jest format zmiennoprzecinkowy, np. FP32, FP16 lub BF16. Format FP32 zapewnia dużą precyzję, ale zajmuje 32 bity na jedną liczbę. Z kolei formaty o mniejszej liczbie bitów, takie jak FP16, zmniejszają rozmiar danych, lecz kosztem dokładności i zakresu reprezentowanych wartości.
 
-W przypadku kwantyzacji dąży się zazwyczaj do przejścia z reprezentacji zmiennoprzecinkowej do reprezentacji o niższej precyzji, najczęściej całkowitej. Przykładowo liczby mogą być przechowywane w postaci INT8 albo INT4. Taki zapis jest znacznie bardziej ekonomiczny pamięciowo, lecz wymaga dodatkowego mechanizmu odwzorowującego wartości ciągłe na dyskretne poziomy kwantyzacji. Mechanizm ten opiera się zwykle na współczynniku skali oraz, w niektórych wariantach, na punkcie zerowym.
+W przypadku kwantyzacji dąży się zazwyczaj do przejścia z reprezentacji zmiennoprzecinkowej do reprezentacji o niższej precyzji, najczęściej całkowitej. Przykładowo, liczby mogą być przechowywane w postaci INT8 albo INT4. Taki zapis jest znacznie bardziej ekonomiczny pamięciowo, lecz wymaga dodatkowego mechanizmu odwzorowującego wartości ciągłe na dyskretne poziomy kwantyzacji. Mechanizm ten opiera się zwykle na współczynniku skali oraz, w niektórych wariantach, na punkcie zerowym.
 
 \subsection{Formaty niskiej precyzji}
 
@@ -28,13 +28,13 @@ Uczenie modelu polega na takim dopasowywaniu jego parametrów, aby minimalizowa�
 
 W pracy pojawia się również pojęcie dostrajania, czyli fine-tuningu. Oznacza ono dalsze uczenie modelu, który został już wcześniej wstępnie wytrenowany, zwykle na mniejszym i bardziej wyspecjalizowanym zbiorze danych. Taki model przejmuje ogólne własności nabyte wcześniej, ale adaptuje się do nowego zadania.
 
-W kontekście metod kompresji ważne jest też pojęcie kalibracji. Jest to wykorzystanie reprezentatywnego, zwykle niewielkiego zbioru danych do oszacowania parametrów potrzebnych kwantyzacji, takich jak skala, rozkład aktywacji lub znaczenie poszczególnych kanałów. Kalibracja nie jest pełnym treningiem, ale może znacząco wpływać na końcową jakość skompresowanego modelu.
+W kontekście metod kompresji ważne jest też pojęcie kalibracji. Jest to wykorzystanie reprezentatywnego, zwykle niewielkiego zbioru danych do oszacowania parametrów potrzebnych do kwantyzacji, takich jak skala, rozkład aktywacji lub znaczenie poszczególnych kanałów. Kalibracja nie jest pełnym treningiem, ale może znacząco wpływać na końcową jakość skompresowanego modelu.
 
-W literaturze kalibracja często pojawia się razem z podejściem post-training quantization, gdzie model nie jest ponownie uczony, lecz tylko dostrajany numerycznie na podstawie ograniczonej próbki danych \cite{frantar2023gptq,NIPS1989_6c9882bb}.
+W literaturze kalibracja często pojawia się razem z podejściem \textit{post-training quantization}, gdzie model nie jest ponownie uczony, lecz tylko dostrajany numerycznie na podstawie ograniczonej próbki danych \cite{frantar2023gptq,NIPS1989_6c9882bb}.
 
 \subsection{Rodzaje zadań uczenia maszynowego}
 
-W pracy pojawiają się trzy podstawowe typy zadań: regresja, klasyfikacja binarna i klasyfikacja wieloklasowa. Regresja polega na przewidywaniu wartości liczbowej, na przykład ceny, ryzyka lub innego parametru ciągłego. Klasyfikacja binarna wybiera jedną z dwóch klas, na przykład tak lub nie. Klasyfikacja wieloklasowa przypisuje przykład do jednej z wielu klas, jak w przypadku rozpoznawania słowa audio albo klasy obrazu.
+W pracy pojawiają się trzy podstawowe typy zadań: regresja, klasyfikacja binarna i klasyfikacja wieloklasowa. Regresja polega na przewidywaniu wartości liczbowej, na przykład ceny, ryzyka lub innego parametru ciągłego. Klasyfikacja binarna wybiera jedną z dwóch klas, na przykład tak lub nie. Klasyfikacja wieloklasowa przypisuje przykład do jednej z wielu klas, jak w przypadku rozpoznawania słowa ze ścieżki audio albo klasy przynależności obrazu.
 
 Takie rozróżnienie ma znaczenie nie tylko dla doboru metryki oceny, ale również dla samej konstrukcji modelu. Inne funkcje aktywacji, inne warstwy wyjściowe i inne funkcje straty są naturalne dla regresji, a inne dla klasyfikacji.
 
@@ -42,15 +42,15 @@ Takie rozróżnienie ma znaczenie nie tylko dla doboru metryki oceny, ale równi
 
 Warstwa Dense, zwana też warstwą gęstą, łączy każdy element wejścia z każdym elementem wyjścia za pomocą macierzy wag. Jest to jedna z najprostszych i najczęściej stosowanych warstw w modelach klasyfikacyjnych oraz regresyjnych.
 
-Warstwy Conv1D i Conv2D realizują operację konwolucji, czyli przesuwania filtra po sygnale jednowymiarowym lub obrazie. Są szczególnie przydatne w analizie danych sekwencyjnych, audio i obrazów, ponieważ potrafią wykrywać lokalne wzorce.
+Warstwy Conv1D i Conv2D realizują operację konwolucji, czyli przesuwania filtra po sygnale jednowymiarowym lub dwuwymiarowym (np. obrazie). Są szczególnie przydatne w analizie danych sekwencyjnych, audio i~obrazów, ponieważ potrafią wykrywać lokalne wzorce.
 
-Warstwa GRU należy do rodziny sieci rekurencyjnych i służy do przetwarzania danych sekwencyjnych, w których istotna jest kolejność elementów. W przeciwieństwie do prostych warstw gęstych uwzględnia ona stan pamięci z poprzednich kroków.
+Warstwa GRU należy do rodziny sieci rekurencyjnych i służy do przetwarzania danych sekwencyjnych, w~których istotna jest kolejność elementów. W przeciwieństwie do prostych warstw gęstych uwzględnia ona stan pamięci z poprzednich kroków.
 
 LayerNormalization to warstwa normalizacyjna, która przekształca wartości wewnątrz próbki tak, aby poprawić stabilność uczenia i ułatwić propagację gradientu. Tego typu warstwy często pojawiają się w głębokich architekturach jako sposób na ustabilizowanie przebiegu treningu.
 
 Funkcja aktywacji określa, jak neurony przekształcają otrzymane sygnały. W pracy pojawiają się między innymi GeLU, Sigmoid i Softmax. GeLU jest gładką funkcją aktywacji często stosowaną w nowoczesnych architekturach. Sigmoid odwzorowuje wartości do przedziału od 0 do 1 i dlatego nadaje się do klasyfikacji binarnej. Softmax przekształca wektor wyjściowy w rozkład prawdopodobieństwa po klasach i jest typową funkcją wyjściową w klasyfikacji wieloklasowej.
 
-GeLU zostało opisane jako Gaussian Error Linear Unit i pojawia się w licznych nowoczesnych modelach głębokiego uczenia, dlatego w tej pracy traktuję je jako standardową funkcję aktywacji dla głębokich warstw gęstych \cite{hendrycks2023gaussian}.
+GeLU zostało opisane jako \textit{Gaussian Error Linear Unit} i pojawia się w licznych nowoczesnych modelach głębokiego uczenia, dlatego w tej pracy traktuję je jako standardową funkcję aktywacji dla głębokich warstw gęstych \cite{hendrycks2023gaussian}.
 
 \subsection{Metryki oceny modeli}
 
@@ -64,7 +64,7 @@ W rozdziale o implementacji pojawiają się także pojęcia związane z realizac
 
 CUDA w tej pracy odnosi się do modelu programowania GPU i do zestawu narzędzi opisanych przez NVIDIA, który pozwala kompilować oraz uruchamiać kod wykonywany na kartach graficznych \cite{nvidia2024cuda}.
 
-Pojęcie batch size oznacza liczbę przykładów przetwarzanych w jednym kroku obliczeń. W większych batchach część operacji da się lepiej zrównoleglić, ale rośnie też zapotrzebowanie na pamięć. W przypadku tej pracy istotny jest również rozmiar bloku, czyli liczba wag grupowanych razem podczas kwantyzacji. Ten parametr wpływa bezpośrednio na stosunek jakości modelu do rozmiaru pliku wynikowego.
+Pojęcie \textit{batch size} oznacza liczbę przykładów przetwarzanych w jednym kroku obliczeń. W większych \textit{batchach} (partiach) część operacji da się lepiej zrównoleglić, ale rośnie też zapotrzebowanie na pamięć. W przypadku tej pracy istotny jest również rozmiar bloku, czyli liczba wag grupowanych razem podczas kwantyzacji. Ten parametr wpływa bezpośrednio na stosunek jakości modelu do rozmiaru pliku wynikowego.
 
 \subsection{Istota kwantyzacji}
 
@@ -72,13 +72,13 @@ Najprościej rzecz ujmując, kwantyzacja polega na przypisaniu liczb z przestrze
 \begin{equation}
 	q = Q(x),
 \end{equation}
-gdzie $q$ jest wartością skwantyzowaną, a $Q$ to funkcja kwantyzacji. Operacja odwrotna, czyli dekwantyzacja, przybliża wartość oryginalną na podstawie zapisanego kodu liczbowego:
+gdzie $q$ jest wartością skwantyzowaną, a $Q$ to funkcja kwantyzacji. Operacja odwrotna, czyli dekwantyzacja, przybliża wartość oryginalną na podstawie wartości skwantyzowanej:
 \begin{equation}
 	\hat{x} = D(q),
 \end{equation}
 gdzie $\hat{x}$ jest przybliżeniem oryginalnej wartości $x$, a $D$ to funkcja dekwantyzacji.
 
-W prostym wariancie symetrycznym przyjmuje się, że skwantyzowana wartość powstaje przez podzielenie liczby przez skalę $s$, zaokrąglenie i ewentualne ograniczenie zakresu do dozwolonych granic. Dla formatu o $b$ bitach zakres ten można zapisać jako
+W prostym wariancie symetrycznym przyjmuje się, że skwantyzowana wartość powstaje przez podzielenie liczby przez skalę $s$, zaokrąglenie i ewentualne ograniczenie zakresu do dozwolonych granic. Dla formatu o $b$~bitach zakres ten można zapisać jako
 \begin{equation}
 	\left[-2^{b-1},\, 2^{b-1}-1\right].
 \end{equation}
@@ -100,17 +100,17 @@ W modelach sieci neuronowych częściej stosuje się jednak kwantyzację symetry
 
 \subsection{Kwantyzacja per-tensor, per-channel i blokowa}
 
-Sposób wyznaczania skali ma duże znaczenie dla jakości końcowego modelu. W kwantyzacji per-tensor dla całego tensora stosuje się jeden wspólny współczynnik skali. Jest to rozwiązanie najprostsze i najtańsze obliczeniowo, ale może być zbyt mało precyzyjne dla dużych warstw o zróżnicowanych wartościach wag.
+Sposób wyznaczania skali ma duże znaczenie dla jakości końcowego modelu. W kwantyzacji \textit{per-tensor} dla całego tensora stosuje się jeden wspólny współczynnik skali. Jest to rozwiązanie najprostsze i najtańsze obliczeniowo, ale może być zbyt mało precyzyjne dla dużych warstw o zróżnicowanych wartościach wag.
 
-Dokładniejszym podejściem jest kwantyzacja per-channel, w której osobną skalę wyznacza się dla każdego kanału, wiersza lub kolumny tensora, zależnie od implementacji. Taki wariant lepiej dopasowuje się do lokalnych różnic w rozkładzie wag, ale wymaga przechowywania większej liczby współczynników pomocniczych.
+Dokładniejszym podejściem jest kwantyzacja \textit{per-channel}, w której osobną skalę wyznacza się dla każdego kanału, wiersza lub kolumny tensora, zależnie od implementacji. Taki wariant lepiej dopasowuje się do lokalnych różnic w rozkładzie wag, ale wymaga przechowywania większej liczby współczynników pomocniczych.
 
 W praktycznych implementacjach bardzo często stosuje się także kwantyzację blokową, zwaną również grupową. W tym podejściu tensor dzieli się na mniejsze fragmenty o ustalonym rozmiarze, a dla każdego bloku wyznacza się osobną skalę. Pozwala to osiągnąć kompromis pomiędzy jakością rekonstrukcji a rozmiarem metadanych. Im mniejszy blok, tym dokładniejsze odwzorowanie wartości, ale tym większy narzut pamięciowy. Zależność ta będzie widoczna również w dalszych rozdziałach pracy, gdzie różne rozmiary bloków wpływają na końcowy rozmiar pliku oraz na jakość modelu po dekwantyzacji.
 
 \subsection{Kwantyzacja po treningu i kwantyzacja podczas treningu}
 
-Ze względu na moment wprowadzenia ograniczeń precyzji rozróżnia się dwa podstawowe podejścia. Kwantyzacja po treningu, czyli PTQ (Post-Training Quantization), polega na skompresowaniu już wytrenowanego modelu bez ponownego uczenia wszystkich parametrów. Jest to rozwiązanie wygodne, ponieważ nie wymaga kosztownego procesu dostrajania modelu od początku, a przy odpowiednim doborze metody może zachować bardzo dobrą jakość \cite{frantar2023gptq}.
+Ze względu na moment wprowadzenia ograniczeń precyzji rozróżnia się dwa podstawowe podejścia. Kwantyzacja po treningu, czyli PTQ (\textit{Post-Training Quantization}), polega na skompresowaniu już wytrenowanego modelu bez ponownego uczenia wszystkich parametrów. Jest to rozwiązanie wygodne, ponieważ nie wymaga kosztownego procesu dostrajania modelu od początku, a przy odpowiednim doborze metody może zachować bardzo dobrą jakość \cite{frantar2023gptq}.
 
-Drugi wariant to kwantyzacja podczas treningu, czyli QAT (Quantization-Aware Training). W tym przypadku model jest uczony z uwzględnieniem ograniczeń wynikających z późniejszej niskiej precyzji zapisu. Pozwala to lepiej przygotować sieć na obecność błędów kwantyzacji, ale wymaga znacznie większych nakładów obliczeniowych i bardziej złożonego procesu trenowania.
+Drugi wariant to kwantyzacja podczas treningu, czyli QAT (\textit{Quantization-Aware Training}). W tym przypadku model jest uczony z uwzględnieniem ograniczeń wynikających z późniejszej niskiej precyzji zapisu. Pozwala to lepiej przygotować sieć na obecność błędów kwantyzacji, ale wymaga znacznie większych nakładów obliczeniowych i bardziej złożonego procesu trenowania.
 
 W niniejszej pracy główny nacisk położony jest na podejście PTQ, ponieważ pozwala ono badać wpływ kompresji bez konieczności ponownego trenowania modeli. Jest to także podejście bliższe praktycznym narzędziom do kompresji modeli, stosowanym po zakończeniu ich uczenia.
 
@@ -129,14 +129,14 @@ Z punktu widzenia dalszych rozdziałów istotne jest więc przede wszystkim to, 
 
 W tym i dalszych rozdziałach pojawia się kilka grup symboli, które warto uporządkować już na tym etapie. Najważniejsze z nich związane są z kwantyzacją wag i z zapisem warstw modelu.
 
-Oryginalną wartość liczbową oznaczam jako $x$, a jej wersję po kwantyzacji jako $q$. Wartość odtworzona w procesie dekwantyzacji ma postać $\hat{x}$. Błąd kwantyzacji oznaczam symbolem $e$. Funkcję kwantyzacji zapisuję jako $Q$, a funkcję dekwantyzacji jako $D$.
+Oryginalną wartość liczbową oznaczam jako $x$, a jej wersję po kwantyzacji jako $q$. Wartość odtworzona w~procesie dekwantyzacji ma postać $\hat{x}$. Błąd kwantyzacji oznaczam symbolem $e$. Funkcję kwantyzacji zapisuję jako $Q$, a funkcję dekwantyzacji jako $D$.
 
 W przypadku wag modeli przyjmuję zapis $w$ dla pojedynczej wagi oraz $W$ dla całej macierzy wag. Skwantyzowany odpowiednik macierzy wag oznaczam jako $\hat{W}$, natomiast macierz wejść jako $X$. W rozdziale o GPTQ pojawia się również $H_F^{-1}$, czyli odwrotna macierz Hesjana, wykorzystywana przy analizie wpływu błędu na wyjście warstwy. Gdy w tekście mowa o różnicy pomiędzy wartością oryginalną i przybliżoną w bardziej ogólnym sensie, używany jest symbol $\Delta$.
 
-Przy opisie skali i przesunięcia stosuję symbole $s$, $z$ oraz $z_0$. W zależności od kontekstu $s$ oznacza współczynnik skali używany do odwzorowania liczb z oryginalnej domeny na domenę skwantyzowaną i z powrotem. Symbol $z$ oznacza przesunięcie lub punkt zerowy w zapisie ogólnym, natomiast $z_0$ jest punktem zerowym w zapisie bardziej precyzyjnym, szczególnie wtedy, gdy trzeba wyróżnić wariant asymetryczny.
+Przy opisie skali i przesunięcia stosuję symbole $s$, $z$ oraz $z_0$. W zależności od kontekstu $s$ oznacza współczynnik skali używany do odwzorowania liczb z oryginalnej domeny na domenę skwantyzowaną i z powrotem. Symbol $z$~oznacza przesunięcie lub punkt zerowy w zapisie ogólnym, natomiast $z_0$ jest punktem zerowym w zapisie bardziej precyzyjnym, szczególnie wtedy, gdy trzeba wyróżnić wariant asymetryczny.
 
 W częściach dotyczących blokowej kompresji wag pojawiają się także symbole $b$ i $B$. Litera $b$ oznacza liczbę bitów przeznaczonych na zapis jednej wartości, a $B$ rozmiar bloku, czyli liczbę wag grupowanych wspólnie przy wyznaczaniu skali i innych parametrów pomocniczych. Jeżeli tekst odnosi się do granic reprezentacji dla danego formatu, pojawia się również zapis zakresu dopuszczalnych wartości, np. dla INT4 lub INT8.
 
 W opisie warstw i modeli często występują też zapisy związane z architekturą sieci. Dense, Conv1D, Conv2D, GRU oraz LayerNormalization oznaczają konkretne typy warstw, a GeLU, Sigmoid i Softmax oznaczają funkcje aktywacji używane w ich wyjściach. Gdy w tekście mowa o jakości modelu, stosowane są nazwy metryk: dokładność, precyzja, czułość, miara F1, MAE, MSE i RMSE.
 
-W częściach dotyczących implementacji i testów pojawiają się ponadto skróty obliczeniowe i organizacyjne. CPU oznacza procesor centralny, GPU procesor graficzny, CUDA platformę obliczeń równoległych, a kernel CUDA pojedynczą funkcję wykonywaną równolegle na GPU. Pojęcie batch size oznacza rozmiar paczki danych przetwarzanych w jednym kroku, a block size rozmiar bloku wag wykorzystywanego w kwantyzacji.
+W częściach dotyczących implementacji i testów pojawiają się ponadto skróty obliczeniowe i organizacyjne. CPU oznacza procesor centralny, GPU procesor graficzny, CUDA platformę obliczeń równoległych, a kernel CUDA pojedynczą funkcję wykonywaną równolegle na GPU. Pojęcie \textit{batch size} oznacza rozmiar paczki danych przetwarzanych w jednym kroku, a \textit{block size} rozmiar bloku wag wykorzystywanego w kwantyzacji.

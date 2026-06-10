@@ -1,4 +1,4 @@
-W pracy przedstawiono przegląd metod kompresji wag modeli sztucznej inteligencji ze szczególnym uwzględnieniem technik kwantyzacji oraz zaprezentowano autorskie narzędzie "Uni-Quant" do szybkiej kwantyzacji i dekwantyzacji modeli TensorFlow.
+W pracy przedstawiono przegląd metod kompresji wag modeli sztucznej inteligencji ze szczególnym uwzględnieniem technik kwantyzacji oraz zaprezentowano autorskie narzędzie \textit{Uni-Quant} do szybkiej kwantyzacji i~dekwantyzacji modeli TensorFlow.
 
 Główne cele pracy obejmowały: analizę podstawowych pojęć związanych z reprezentacją liczb i kwantyzacją, omówienie współczesnych rozwiązań stosowanych w praktyce inżynierskiej oraz opracowanie praktycznej biblioteki umożliwiającej przeprowadzenie kwantyzacji i odzyskanie wag w formacie użytecznym do wnioskowania.
 
@@ -8,9 +8,9 @@ Rozdział dotyczący popularnych rozwiązań zawierał charakterystykę ekosyste
 
 W części implementacyjnej zaprezentowano bibliotekę Uni-Quant, która realizuje post-training quantization w wariantach 4- i 8-bitowych, opierając się na grupowaniu wag w bloki i zapisie współczynnika skalującego dla każdego bloku. Wprowadzono mechanizmy:
 \begin{itemize}
-    \item Blokowego skalowania wag oraz zapisu skal,\\
-    \item Pakowania dwóch wartości 4-bitowych w jeden bajt,\\
-    \item Zapisu wag i metadanych w postaci binarnej oraz JSON-owych manifestów scalonych w archiwum z rozszerzeniem .uniq,\\
+    \item Blokowego skalowania wag oraz zapisu skal.
+    \item Pakowania dwóch wartości 4-bitowych w jeden bajt.
+    \item Zapisu wag i metadanych w postaci binarnej oraz JSON-owych manifestów scalonych w archiwum z rozszerzeniem .uniq.
     \item Zachowania fragmentów o rozmiarze mniejszym niż blok w postaci float32, aby zminimalizować degradację jakości.
 \end{itemize}
 
@@ -20,11 +20,11 @@ Testy przeprowadzone w pracy wykazały oczekiwane zależności: zmniejszenie lic
 
 Własny wkład praktyczny można podsumować jako:
 \begin{itemize}
-    \item Zaprojektowanie i zaimplementowanie biblioteki Uni-Quant do szybkiej kwantyzacji i dekwantyzacji modeli TensorFlow wraz z formatem archiwum .uniq,\\
-    \item Przeprowadzenie testów ilustrujących kompromisy między rozmiarem pliku a zachowaniem jakości oraz wpływu rozmiaru bloku i szerokości bitowej,\\
+    \item Zaprojektowanie i zaimplementowanie biblioteki Uni-Quant do szybkiej kwantyzacji i dekwantyzacji modeli TensorFlow wraz z formatem archiwum .uniq.
+    \item Przeprowadzenie testów ilustrujących kompromisy między rozmiarem pliku a zachowaniem jakości oraz wpływu rozmiaru bloku i szerokości bitowej.
     \item Integracja przyspieszenia obliczeń opartego na kernelach CUDA oraz udokumentowanie wpływu akceleracji na czasy przetwarzania.
 \end{itemize}
 
-Ograniczenia pracy i kierunki dalszych badań: praca koncentruje się na podejściach post-training quantization i prostych strategiach blokowego skalowania. Do istotnych rozszerzeń należą integracja zaawansowanych algorytmów PTQ (np. GPTQ i AWQ), implementacja per-channel scaling i technik kalibracji opartych na reprezentatywnych zbiorach danych. Dalsze badania mogą również objąć automatyczne dobieranie parametrów (np. rozmiar bloku) przy uwzględnieniu kosztu pamięciowego i metryk jakości oraz bardziej rozbudowane testy na modelach produkcyjnych o bardzo dużej liczbie parametrów. Praktycznym kierunkiem rozwoju jest bezpośrednia integracja formatu .uniq z ekosystemem TensorFlow, umożliwiająca wykonywanie modelu bezpośrednio z archiwum .uniq przy użyciu mechanizmu on‑the‑fly (lub częściowej, leniwej) dekwantyzacji bloków podczas inferencji, co poza obecnym zmniejszaniem rozmiaru na dysku, obniży wymagania sprzętowe i pozwoli uruchamiać duże modele w środowiskach o ograniczonych zasobach.
+Ograniczenia pracy i kierunki dalszych badań: praca koncentruje się na podejściach \textit{post-training quantization} i prostych strategiach blokowego skalowania. Do istotnych rozszerzeń należą integracja zaawansowanych algorytmów PTQ (np. GPTQ i AWQ), implementacja \textit{per-channel scaling} i technik kalibracji opartych na reprezentatywnych zbiorach danych. Dalsze badania mogą również objąć automatyczne dobieranie parametrów (np. rozmiar bloku) przy uwzględnieniu kosztu pamięciowego i metryk jakości oraz bardziej rozbudowane testy na modelach produkcyjnych o bardzo dużej liczbie parametrów. Praktycznym kierunkiem rozwoju jest bezpośrednia integracja formatu .uniq z ekosystemem TensorFlow, umożliwiająca wykonywanie modelu bezpośrednio z archiwum .uniq przy użyciu mechanizmu \textit{on‑the‑fly} (lub częściowej) dekwantyzacji bloków podczas inferencji, co poza obecnym zmniejszaniem rozmiaru na dysku, obniży wymagania sprzętowe i pozwoli uruchamiać duże modele w środowiskach o ograniczonych zasobach.
 
 Podsumowując, praca ukazuje, że kwantyzacja jest efektywnym mechanizmem zmniejszania kosztów przechowywania i wykonywania modeli SI, lecz wymaga starannego doboru strategii i parametrów, aby zminimalizować spadek jakości. Uni-Quant dostarcza praktycznego narzędzia do eksperymentów i stanowi solidną bazę do dalszego rozwoju metod kompresji.
